@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import re
+import sys
+
+astrTables = sys.argv[1:]
+
+aastrHeaders = []
+hashResults = {}
+for iTable in range( len( astrTables ) ):
+	fFirst = True
+	for strLine in open( astrTables[iTable] ):
+		astrLine = [strToken.strip( ) for strToken in strLine.split( "\t" )]
+		astrData = astrLine[1:]
+		if fFirst:
+			fFirst = False
+			aastrHeaders.append( astrData )
+			continue
+		aastrRow = hashResults.setdefault( astrLine[0], [] )
+		if len( aastrRow ) <= iTable:
+			aastrRow += [None] * ( 1 + iTable - len( aastrRow ) )
+		aastrRow[iTable] = astrData
+
+sys.stdout.write( "GID" )
+for iTable in range( len( astrTables ) ):
+	sys.stdout.write( "\t" + "\t".join( aastrHeaders[iTable] ) )
+print( "" )
+
+for strID, aastrData in sorted( hashResults.items( ) ):
+	sys.stdout.write( strID )
+	for iDatum in range( len( aastrHeaders ) ):
+		astrData = aastrData[iDatum] if ( iDatum < len( aastrData ) ) else \
+			None
+		strData = "\t".join( astrData ) if astrData else \
+			( "\t" * ( len( aastrHeaders[iDatum] ) - 1 ) )
+		sys.stdout.write( "\t" + strData )
+	print( "" )
