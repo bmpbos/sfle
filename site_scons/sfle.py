@@ -91,13 +91,13 @@ def lc( strFile ):
 	return strWC
 """
 
-def d( *astrArgs ):
+def d( *aArgs ):
 	
-	return "/".join( astrArgs )
+	return "/".join( str(p) for p in aArgs )
 
-def rebase( strPath, strFrom, strTo ):
+def rebase( pPath, strFrom, strTo ):
 	
-	return os.path.basename( strPath ).replace( strFrom, strTo )
+	return os.path.basename( str(pPath) ).replace( strFrom, strTo )
 
 #===============================================================================
 # SCons utilities
@@ -232,12 +232,12 @@ def scons_child( pE, fileDir, hashArgs = None, fileSConstruct = None, afileDeps 
 		return subprocess.call( ["scons"] + sys.argv[1:] + ["-C", strDir] )
 	return pE.Command( "dummy:" + os.path.basename( str(fileDir) ), afileDeps, funcTmp )
 
-def scons_children( pE, afileDeps = None ):
+def scons_children( pE, strDir = ".", afileDeps = None, astrExclude = [] ):
 
 	afileRet = []
-	for fileCur in pE.Glob( "*" ):
+	for fileCur in pE.Glob( d( strDir, "*" ) ):
 		if ( type( fileCur ) == type( pE.Dir( "." ) ) ) and \
-			( os.path.basename( str(fileCur) ) not in c_astrExclude ):
+			( os.path.basename( str(fileCur) ) not in astrExclude ):
 			afileRet.extend( scons_child( pE, fileCur, None, None, afileDeps ) )
 	return afileRet
 

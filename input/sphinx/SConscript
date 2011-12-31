@@ -1,0 +1,44 @@
+import os
+import sfle
+import sys
+
+Import( "*" )
+
+#c_dFence				= 3
+#c_strMetadatum			= "study_day2"
+c_strSufHTML			= ".html"
+c_strSufPY				= ".py"
+c_strSufRST				= ".rst"
+
+c_fileInputIndexRST		= File( sfle.d( fileDirInput, "index" + c_strSufRST ) )
+c_fileInputConfPY		= File( sfle.d( sfle.c_strDirSrc, "conf" + c_strSufPY ) )
+
+c_fileDoctestTXT		= File( sfle.d( fileDirOutput, "doctest.txt" ) )
+# Sphinx automatically names this file output.txt, for reasons that are inscrutable to me
+c_fileSphinxTXT			= File( sfle.d( fileDirOutput, "output.txt" ) )
+c_fileIndexHTML			= File( sfle.d( fileDirOutput, sfle.rebase(
+							c_fileInputIndexRST, c_strSufRST, c_strSufHTML ) ) )
+
+c_fileProgArgParser		= File( sfle.d( sfle.c_strDirSrc, "argparser.py" ) )
+c_fileProgUnitTests		= File( sfle.d( sfle.c_strDirSrc, "unittests.py" ) )
+
+pE = DefaultEnvironment( )
+
+afileProgs = [c_fileProgArgParser, c_fileProgGrepRows, c_fileProgSubsample, c_fileProgTranspose,
+	c_fileProgUnitTests, c_fileProgVitals]
+
+def funcSphinx( fDoctest = False ):
+	def funcRet( target, source, env, fDoctest = fDoctest ):
+		strT, astrSs = sfle.ts( target, source )
+		strRST, strPY = astrSs[:2]
+		return sfle.ex( ("sphinx-build -W", "-b doctest" if fDoctest else "",
+			"-c", os.path.dirname( strPY ), os.path.dirname( strRST ), os.path.dirname( strT )) )
+	return funcRet
+pPrev = None
+for strOutput, fDoctest in ((c_fileIndexHTML, False), (c_fileSphinxTXT, True)):
+	pCur = Command( strOutput, [c_fileInputIndexRST, c_fileInputConfPY] + afileProgs, funcSphinx( fDoctest ) )
+	if pPrev:
+		Requires( pCur, pPrev )
+	pPrev = pCur
+
+sfle.scmd( pE, "python -m doctest -v", c_fileDoctestTXT, [[True, f] for f in afileProgs] )

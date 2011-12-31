@@ -6,4 +6,5 @@ syntax: glob
 *.pyo
 
 SConstruct.py
+SConscript.py
 output/

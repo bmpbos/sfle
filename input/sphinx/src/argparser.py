@@ -56,8 +56,9 @@ Unlike `Sphinx`_, |argparse| is a standard Python module and is quite well-docum
 and intuitive.  Please see its main documentation for examples, several of which are
 documented and demonstrated by example in the code of this file:
 
-.. literalinclude:: ../src/argparser.py
-	:linenos:
+.. toctree::
+
+	demos_argparser
 
 .. testsetup::
 
