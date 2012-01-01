@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import csv
+import ftplib
 import glob
 import os
 import re
@@ -160,6 +161,15 @@ def download( pE, strURL, strT = None, fSSL = False, fGlob = True ):
 		return ( iRet if ( iRet != 19 ) else 0 )
 	return pE.Command( strT, None, funcDownload )
 
+def ftpls( strHost, strPath ):
+
+	ftp = ftplib.FTP( strHost )
+	ftp.login( "anonymous" )
+	ftp.cwd( strPath )
+	astrRet = []
+	ftp.retrlines( "NLST", astrRet.append )
+	return astrRet
+
 def _pipefile( pFile ):
 	
 	return ( ( pFile.get_abspath( ) if ( "get_abspath" in dir( pFile ) ) else str(pFile) )
@@ -168,6 +178,10 @@ def _pipefile( pFile ):
 def quote( p ):
 
 	return ( "\"" + str(p) + "\"" )
+
+def cat( strFrom ):
+	
+	return " ".join( (( "gunzip -c" if re.search( r'\.gz$', strFrom ) else "cat" ), quote( strFrom )) )
 
 def _pipeargs( strFrom, strTo, aaArgs ):
 
@@ -185,8 +199,7 @@ def pipe( pE, strFrom, strProg, strTo, aaArgs = [] ):
 	strFrom, strTo, astrFiles, astrArgs = _pipeargs( strFrom, strTo, aaArgs )
 	def funcPipe( target, source, env, strFrom = strFrom, astrArgs = astrArgs ):
 		strT, astrSs = ts( target, source )
-		return ex( " ".join( ( ["cat", quote( strFrom ), "|"] if strFrom else [] ) +
-			[astrSs[0]] + astrArgs ), strT )
+		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [astrSs[0]] + astrArgs, strT )
 	return pE.Command( strTo, [strProg] + ( [strFrom] if strFrom else [] ) +
 		astrFiles, funcPipe )
 
@@ -198,8 +211,7 @@ def spipe( pE, strFrom, strCmd, strTo, aaArgs = [] ):
 	strFrom, strTo, astrFiles, astrArgs = _pipeargs( strFrom, strTo, aaArgs )
 	def funcPipe( target, source, env, strCmd = strCmd, strFrom = strFrom, astrArgs = astrArgs ):
 		strT, astrSs = ts( target, source )
-		return ex( " ".join( ( ["cat", quote( strFrom ), "|"] if strFrom else [] ) +
-			[strCmd] + astrArgs ), strT )
+		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [strCmd] + astrArgs, strT )
 	return pE.Command( strTo, ( [strFrom] if strFrom else [] ) + astrFiles, funcPipe )
 
 def scmd( pE, strCmd, strTo, aaArgs = [] ):
@@ -237,8 +249,9 @@ def scons_children( pE, strDir = ".", afileDeps = None, astrExclude = [] ):
 	afileRet = []
 	for fileCur in pE.Glob( d( strDir, "*" ) ):
 		if ( type( fileCur ) == type( pE.Dir( "." ) ) ) and \
-			( os.path.basename( str(fileCur) ) not in astrExclude ):
-			afileRet.extend( scons_child( pE, fileCur, None, None, afileDeps ) )
+			( os.path.basename( str(fileCur) ) not in astrExclude ) and \
+			os.path.exists( d( str(fileCur), "SConstruct" ) ):
+			afileRet += scons_child( pE, fileCur, None, None, afileDeps )
 	return afileRet
 
 #------------------------------------------------------------------------------ 
@@ -255,19 +268,20 @@ def scons_children( pE, strDir = ".", afileDeps = None, astrExclude = [] ):
 # http://www.scons.org/wiki/DynamicSourceGenerator
 #------------------------------------------------------------------------------ 
 
-def sconscript_child( target, source, env, strID, hashArgs = None, afileDeps = None, iLevel = 1, strDir = "." ):
+def sconscript_child( target, source, env, strID, fileSConstruct,
+	hashArgs = None, afileDeps = None, iLevel = 1, strDir = "." ):
 
 	fileTarget = target[0] if ( type( target ) == list ) else target
 	strDir = strDir if ( type( strDir ) == str ) else strDir.get_abspath( )
 	strDir = d( strDir, c_strDirData if ( iLevel == 1 ) else "", strID )
-	return scons_child( env, strDir, hashArgs, d( path_arepa( ), c_strDirSrc, "SConstruct.py" ), afileDeps )
+	return scons_child( env, strDir, hashArgs, fileSConstruct, afileDeps )
 
-def sconscript_children( pE, afileSources, funcScanner, iLevel, funcAction = None ):
+def sconscript_children( pE, afileSources, funcScanner, iLevel, fileSConstruct, hashArgs = None, funcAction = None ):
 	
 	if not getattr( afileSources, "__iter__", False ):
 		afileSources = [afileSources]
-	def funcTmp( target, source, env, strID, hashArgs = None, afileDeps = None, iLevel = iLevel, strDir = pE.Dir( "." ) ):
-		return sconscript_child( target, source, env, strID, hashArgs, afileDeps, iLevel, strDir )
+	def funcTmp( target, source, env, strID, hashArgs = hashArgs, afileDeps = None, iLevel = iLevel, strDir = pE.Dir( "." ) ):
+		return sconscript_child( target, source, env, strID, fileSConstruct, hashArgs, afileDeps, iLevel, strDir )
 	if not funcAction:
 		funcAction = funcTmp
 	
@@ -277,6 +291,22 @@ def sconscript_children( pE, afileSources, funcScanner, iLevel, funcAction = Non
 	afileSubdirs = getattr( pE, strID )( strID, afileSources, sconscript_child = funcAction )
 	pE.AlwaysBuild( afileSubdirs )
 	return afileSubdirs
+
+def scanner( fileExclude = None, fileInclude = None ):
+
+	setstrExclude = set(readcomment( fileExclude ) if fileExclude else [])
+	setstrInclude = set(readcomment( fileInclude ) if fileInclude else [])
+	def funcRet( target, source, env, setstrInclude = setstrInclude, setstrExclude = setstrExclude ):
+		strT, astrSs = ts( target, source )
+		for strS in astrSs:
+			for astrLine in csv.reader( open( strS ), csv.excel_tab ):
+				if not ( astrLine and astrLine[0] ):
+					continue
+				strID = astrLine[0]
+				if ( setstrInclude and ( strID not in setstrInclude ) ) or ( strID in setstrExclude ):
+					continue
+				env["sconscript_child"]( target, source[0], env, strID )
+	return funcRet
 
 #===============================================================================
 # CProcessor
