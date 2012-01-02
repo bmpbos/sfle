@@ -148,7 +148,7 @@ def override( pE, pFile ):
 # Command execution
 #===============================================================================
 
-def download( pE, strURL, strT = None, fSSL = False, fGlob = True ):
+def download( pE, strURL, strT = None, fSSL = False, fGlob = True, fImmediate = False ):
 
 	if not strT:
 		strT = re.sub( r'^.*\/', "", strURL )
@@ -159,7 +159,8 @@ def download( pE, strURL, strT = None, fSSL = False, fGlob = True ):
 			"" if fGlob else "-g", "-f", "-z", strT, "'" + strURL + "'") ), strT )
 # 19 is curl's document-not-found code
 		return ( iRet if ( iRet != 19 ) else 0 )
-	return pE.Command( strT, None, funcDownload )
+	return ( funcDownload( [strT], [], pE ) if fImmediate else
+		pE.Command( strT, None, funcDownload ) )
 
 def ftpls( strHost, strPath ):
 
