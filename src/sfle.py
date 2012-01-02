@@ -22,6 +22,9 @@ c_strDirEtc		= "etc/"
 c_strDirSrc		= "src/"
 c_strDirTmp		= "tmp/"
 
+c_strSufHTML	= ".html"
+c_strSufRST		= ".rst"
+
 #===============================================================================
 # Basic global utilities
 #===============================================================================
@@ -271,6 +274,75 @@ def spipe( pE, strFrom, strCmd, strTo, aaArgs = [] ):
 def scmd( pE, strCmd, strTo, aaArgs = [] ):
 
 	return spipe( pE, None, strCmd, strTo, aaArgs )
+
+#===============================================================================
+# Sphinx reporting utilities
+#===============================================================================
+
+def _sphinx( fDoctest = False ):
+	def funcRet( target, source, env, fDoctest = fDoctest ):
+		strT, astrSs = ts( target, source )
+		strRST, strPY = astrSs[:2]
+		return ex( ("sphinx-build -W", "-b doctest" if fDoctest else "",
+			"-c", os.path.dirname( strPY ), os.path.dirname( strRST ), os.path.dirname( strT )) )
+	return funcRet
+
+def _sphinx_conf( pE, strConfPY ):
+	
+	def funcConfPY( target, source, env ):
+		strT, astrSs = ts( target, source )
+		with open( strT, "w" ) as ostm:
+			ostm.write( "master_doc = 'index'\n" )
+		return None
+	return pE.Command( strConfPY, None, funcConfPY )
+
+def sphinx( pE, strFrom, strProg, strTo, aaArgs = [] ):
+	
+	strRST = str(strTo).replace( c_strSufHTML, c_strSufRST )
+	pipe( pE, strFrom, strProg, strRST, aaArgs )
+	strConfPY = d( os.path.dirname( strRST ), "conf.py" )
+	_sphinx_conf( pE, strConfPY )
+	return pE.Command( strTo, [strRST, strConfPY], _sphinx( ) )
+
+def rst_text( strText, ostm ):
+	
+	ostm.write( "%s\n\n" % strText )
+	return True
+
+def _rst_section( strTitle, ostm, strChar ):
+
+	return rst_text( "%s\n%s" % (strTitle, strChar * len(strTitle)), ostm )
+
+def rst_section( strTitle, ostm ):
+	
+	return _rst_section( strTitle, ostm, "=" )
+
+def rst_subsection( strTitle, ostm ):
+	
+	return _rst_section( strTitle, ostm, "-" )
+
+def rst_subsubsection( strTitle, ostm ):
+	
+	return _rst_section( strTitle, ostm, "~" )
+
+def rst_table( aaTable, ostm, fHeader = True ):
+
+	if not ( aaTable and aaTable[0] ):
+		return False
+	
+	iWidth = max( (max( (len( str(p) ) for p in a) ) for a in aaTable) )
+	astrHeader = ["=" * iWidth] * len( aaTable[0] )
+	aaOutput = [astrHeader] + [a for a in aaTable] + [astrHeader]
+	if fHeader:
+		aaOutput.insert( 2, astrHeader )
+	for aOutput in aaOutput:
+		astrOutput = [str(p) for p in aOutput]
+		for i in range( len( astrOutput ) ):
+			if len(astrOutput[i]) < iWidth:
+				astrOutput[i] += " " * ( iWidth - len(astrOutput[i]) )
+		ostm.write( "%s\n" % "  ".join( astrOutput ) )
+	ostm.write( "\n" )
+	return True
 
 #===============================================================================
 # SConstruct helper functions

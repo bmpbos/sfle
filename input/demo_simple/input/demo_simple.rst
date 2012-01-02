@@ -1,5 +1,3 @@
-.. include:: global.rst
-
 .. _data.pcl:		../../input/demo_simple/input/data.pcl
 .. _metadata.pcl:	../../input/demo_simple/input/metadata.pcl
 .. _data.tsv:		../tmp/demo_simple/data.tsv

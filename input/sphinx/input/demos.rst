@@ -1,7 +1,11 @@
+.. include:: global.rst
+
 Demo projects
 =============
 
 .. include:: ../../../input/demo_simple/input/demo_simple.rst
+
+.. include:: ../../../input/demo_report/input/demo_report.rst
 
 Demo scripts
 ============
