@@ -1,0 +1,14 @@
+import sfle
+import sys
+
+Import( "*" )
+
+c_fileInputDataPCL		= File( sfle.d( fileDirInput, "data.pcl" ) )
+
+c_fileIndexHTML			= File( sfle.d( fileDirOutput, "index.html" ) )
+
+c_fileProgReport		= File( sfle.d( sfle.c_strDirSrc, "report.py" ) )
+
+pE = DefaultEnvironment( )
+
+sfle.sphinx( pE, c_fileInputDataPCL, c_fileProgReport, c_fileIndexHTML )
