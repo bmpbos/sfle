@@ -6,9 +6,11 @@
 	from sfle import *
 """
 
+import collections
 import csv
 import ftplib
 import glob
+import logging
 import os
 import re
 import subprocess
@@ -25,15 +27,19 @@ c_strDirTmp		= "tmp/"
 c_strSufHTML	= ".html"
 c_strSufRST		= ".rst"
 
+c_logrSflE		= logging.getLogger( "sfle" )
+lghn = logging.StreamHandler( sys.stderr )
+lghn.setFormatter( logging.Formatter( '%(asctime)s %(levelname)10s %(module)s.%(funcName)s@%(lineno)d %(message)s' ) )
+c_logrSflE.addHandler( lghn )
+#c_logrSflE.setLevel( logging.DEBUG )
+
 #===============================================================================
 # Basic global utilities
 #===============================================================================
 
 def regs( strRE, strString, aiGroups ):
 
-	try:
-		iter( aiGroups )
-	except TypeError:
+	if not iscollection( aiGroups ):
 		aiGroups = (aiGroups,)
 	mtch = re.search( strRE, strString )
 	astrRet = [mtch.group( i ) for i in aiGroups] if mtch else \
@@ -156,6 +162,10 @@ def rebase( pPath, strFrom = None, strTo = "" ):
 	elif strTo:
 		strRet += strTo
 	return strRet
+
+def iscollection( pValue ):
+	
+	return isinstance( pValue, collections.Iterable )
 
 #===============================================================================
 # SCons utilities
@@ -405,7 +415,7 @@ def sconscript_child( target, source, env, strID, fileSConstruct,
 
 def sconscript_children( pE, afileSources, funcScanner, iLevel, fileSConstruct, hashArgs = None, funcAction = None ):
 	
-	if not getattr( afileSources, "__iter__", False ):
+	if not iscollection( afileSources ):
 		afileSources = [afileSources]
 	def funcTmp( target, source, env, strID, hashArgs = hashArgs, afileDeps = None, iLevel = iLevel, strDir = pE.Dir( "." ) ):
 		return sconscript_child( target, source, env, strID, fileSConstruct, hashArgs, afileDeps, iLevel, strDir )
@@ -439,43 +449,123 @@ def scanner( fileExclude = None, fileInclude = None ):
 # CProcessor
 #===============================================================================
 
+class CCommand:
+	
+	def __init__( self, strCommand, astrArgs = [], fPipe = True, fStatic = False ):
+		
+		self.m_strCommand = strCommand
+		self.m_astrArgs = astrArgs
+		self.m_fPipe = fPipe
+		self.m_fStatic = fStatic
+
+	def ex( self, pE, fileIn, fileOut ):
+		
+		if self.m_fPipe:
+			funcPipe = spipe if self.m_fStatic else pipe
+			return funcPipe( pE, fileIn, self.m_strCommand, fileOut )
+		funcCmd = scmd if self.m_fStatic else cmd
+		return funcCmd( pE, self.m_strCommand, fileOut, [[True, fileIn]] + self.m_astrArgs )
+
+class CTarget:
+	
+	def __init__( self, strSuffix = None, fileDir = None, strTag = None ):
+		
+		self.m_strTag = strTag
+		self.m_strSuffix = strSuffix
+		self.m_fileDir = fileDir
+		
+	def in2out( self, fileIn, pTo, strName = None ):
+		"""
+		>>> pFrom = CTarget( None, "input" )
+		>>> pTo = CTarget( None, "output" )
+		>>> pFrom.in2out( "input/data.txt", pTo )
+		'output/data.txt'
+
+		>>> pFrom = CTarget( ".pcl" )
+		>>> pTo = CTarget( ".tsv" )
+		>>> pFrom.in2out( "tmp/data.pcl", pTo )
+		'tmp/data.tsv'
+		
+		>>> pFrom.in2out( "tmp/data.tsv", pTo )
+		
+		>>> pFrom = CTarget( )
+		>>> pTo = CTarget( None, None, "01" )
+		>>> pFrom.in2out( "tmp/data.txt", pTo, "test" )
+		'tmp/data_01-test.txt'
+		
+		>>> pFrom = CTarget( None, None, "00" )
+		>>> pFrom.in2out( "tmp/data.txt", pTo, "test" )
+
+		>>> pFrom.in2out( "tmp/data_00.txt", pTo )
+		'tmp/data_01.txt'
+		"""
+
+		strRet = str(fileIn)
+		strBase = os.path.basename( strRet )
+		c_logrSflE.debug( "Initial ret/base: %s" % [strRet, strBase] )
+
+		if self.m_strSuffix:
+			if not strBase.endswith( self.m_strSuffix ):
+				return None
+			strBase = strBase[:-len( self.m_strSuffix )]
+		if self.m_strTag:
+			mtch = re.search( r'^(.*)_(' + re.escape( self.m_strTag ) + r')(-.*)?(\.\S+)?$', strBase )
+			if not mtch:
+				return None
+			strBase = mtch.group( 1 ) + mtch.group( 4 )
+		c_logrSflE.debug( "Stripped ret/base: %s" % [strRet, strBase] )
+
+		strRet = d( pTo.m_fileDir or os.path.dirname( strRet ), strBase )
+		strSuffix = pTo.m_strSuffix
+		if not self.m_strSuffix:
+			mtch = re.search( r'(\.\S+)$', strRet )
+			if mtch:
+				strSuffix = strSuffix or mtch.group( 1 )
+				strRet = strRet[:-len( mtch.group( 1 ) )]
+		c_logrSflE.debug( "Suffixed ret/suf: %s" % [strRet, strSuffix] )
+		if pTo.m_strTag or strName:
+			strRet += "_"
+			if pTo.m_strTag:
+				strRet += pTo.m_strTag
+				if strName:
+					strRet += "-"
+			if strName:
+				strRet += strName
+		if strSuffix:
+			strRet += strSuffix
+		c_logrSflE.debug( "Returning: %s" % strRet )
+		return strRet
+
 class CProcessor:
 
 	@staticmethod
-	def pipeline( pE, apPipeline, afileIn, strDir = c_strDirData, strSuffix = None ):
-		
+	def pipeline( pE, apPipeline, afileIn ):
+
+		afileIn = afileIn or []
+		if not iscollection( apPipeline ):
+			apPipeline = (apPipeline,)		
 		for apProc in apPipeline:
-			if type( apProc ) != list:
-				apProc = [apProc]
+			if not iscollection( apProc ):
+				apProc = (apProc,)
 			afileOut = []
 			for pProc in apProc:
 				for fileIn in afileIn:
-					afileOut.extend( pProc.ex( pE, str(fileIn), strDir, strSuffix ) )
+					afileOut += pProc.ex( pE, fileIn ) or []
 			afileIn = afileOut
 		return afileIn
 
-	def __init__( self, strFrom, strTo, strID, strProcessor,
-		astrArgs = [], strDir = None, fPipe = True ):
+	def __init__( self, strID, pFrom, pCommand, pTo ):
 
-		self.m_strDir = strDir
-		self.m_strFrom = strFrom
-		self.m_strTo = strTo
 		self.m_strID = strID
-		self.m_strProcessor = strProcessor
-		self.m_astrArgs = astrArgs
-		self.m_fPipe = fPipe
+		self.m_pFrom = pFrom
+		self.m_pCommand = pCommand
+		self.m_pTo = pTo
 
-	def in2out( self, strIn, strDir = c_strDirData, strSuffix = None ):
+	def in2out( self, fileIn ):
+		
+		return self.m_pFrom.in2out( fileIn, self.m_pTo )
 
-		if not strSuffix:
-			mtch = re.search( r'(\.[^.]+)$', strIn )
-			strSuffix = mtch.group( 1 ) if mtch else ""
-		if self.m_strDir:
-			strIn = re.sub( r'^.*' + self.m_strDir + '/', strDir + "/", strIn )
-		return re.sub( ( self.m_strFrom + r'()$' ) if self.m_strDir else
-			( r'_' + self.m_strFrom + r'(-.*)' + strSuffix + r'$' ),
-			"_" + self.m_strTo + "\\1-" + self.m_strID + strSuffix, strIn )
-
+	"""
 	def out2in( self, strOut ):
 
 		if self.m_strDir:
@@ -484,15 +574,12 @@ class CProcessor:
 		return re.sub( '_' + pSelf.m_strTo + '(.*)-' + pSelf.m_strID,
 			( "_" + pSelf.m_strFrom + "\\1" ) if pSelf.m_strFrom else "",
 			strOut )
+	"""
 
-	def ex( self, pE, strIn, strDir = c_strDirData, strSuffix = None ):
+	def ex( self, pE, fileIn ):
 		
-		strIn = str(strIn)
-		strOut = self.in2out( strIn, strDir, strSuffix )
-		if not strOut:
-			return None
-		return ( pipe( pE, strIn, self.m_strProcessor, strOut, self.m_astrArgs ) if self.m_fPipe else
-			cmd( pE, self.m_strProcessor, strOut, [[True, strIn]] + self.m_astrArgs ) )
+		fileOut = self.in2out( fileIn )
+		return ( self.m_pCommand.ex( pE, fileIn, fileOut ) if fileOut else None )
 
 #------------------------------------------------------------------------------ 
 
