@@ -6,7 +6,7 @@ c_fileDirInput			= Dir( "input" )
 c_fileDirOutput			= Dir( "output" )
 c_fileDirSrc			= Dir( sfle.c_strDirSrc )
 
-c_fileProgSflE			= File( sfle.d( "site_scons", "sfle.py" ) )
+c_fileProgSflE			= File( sfle.d( "src", "sfle.py" ) )
 c_fileProgGenerateTable	= File( sfle.d( sfle.c_strDirSrc, "generate_random_table.py" ) )
 c_fileProgGrepRows		= File( sfle.d( sfle.c_strDirSrc, "grep_rows.py" ) )
 c_fileProgMergeTables	= File( sfle.d( sfle.c_strDirSrc, "merge_tables.py" ) )
