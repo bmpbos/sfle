@@ -55,14 +55,14 @@ Downloading and installing SflE
 
 Choose one of the following methods to obtain `SflE`_:
 
+* `Mercurial`_ install (strongly recommended)::
+
+	hg clone ssh://hg@bitbucket.org/chuttenh/sfle
+
 * `SflE install <https://bitbucket.org/chuttenh/sfle/get/default.tar.gz>`_::
 
 	tar -xzf chuttenh-sfle-###.tar.gz
 	mv chuttenh-sfle-### sfle
-	
-* `Mercurial`_ install::
-
-	hg clone ssh://hg@bitbucket.org/chuttenh/sfle
 
 `SflE`_ is compatible with Linux and Mac OS, and runs with some issues
 on Windows using `Cygwin`_.  After ensuring that you have the following
@@ -70,6 +70,7 @@ on Windows using `Cygwin`_.  After ensuring that you have the following
 its default workflows with a single :command:`scons` command::
 
 	cd sfle
+	export PYTHONPATH=`pwd`/src
 	scons
 
 Prerequisites
@@ -151,6 +152,14 @@ Each step represents one or a few modules, and each module runs exactly one :dfn
 to generate a new output.  Normalizing an input file creates one new, normalized output
 file.  Combining two files might require creating two intermediate files and then joining
 them into another new output file.
+
+.. note::
+
+	Projects are typically each stored in their own separate `Mercurial`_
+	repository.  The `SflE`_ package includes several demonstration projects,
+	but these are atypical.  You should generally ``hg init`` your own new
+	projects and then ``hg push`` them to an appropriate location such as
+	`Bitbucket`_.
 
 `SflE`_ defines commands within modules, and assembles modules into workflows, using
 the `SCons`_ build system.  `SCons`_, like `make`_, is a dependency-based "language" in

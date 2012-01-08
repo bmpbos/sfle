@@ -1,11 +1,11 @@
-.. _data.pcl:		../../input/demo_simple/input/data.pcl
-.. _metadata.pcl:	../../input/demo_simple/input/metadata.pcl
-.. _data.tsv:		../tmp/demo_simple/data.tsv
-.. _metadata.tsv:	../tmp/demo_simple/metadata.tsv
-.. _merged.tsv:		../tmp/demo_simple/merged.tsv
-.. _merged.pcl:		../demo_simple/merged.pcl
-.. _report.txt:		../demo_simple/report.txt
-.. _SConscript:		../../input/demo_simple/SConscript
+.. _data.pcl:				../../input/demo_simple/input/data.pcl
+.. _metadata.pcl:			../../input/demo_simple/input/metadata.pcl
+.. _data.tsv:				../tmp/demo_simple/data.tsv
+.. _metadata.tsv:			../tmp/demo_simple/metadata.tsv
+.. _merged.tsv:				../tmp/demo_simple/merged.tsv
+.. _merged.pcl:				../demo_simple/merged.pcl
+.. _report.txt:				../demo_simple/report.txt
+.. _demo_simple SConscript:	../../input/demo_simple/SConscript
 
 demo_simple
 -----------
@@ -37,9 +37,9 @@ It generates four intermediate files in order to do this:
 	column join feature of the :ref:`merge_tables` script.  We instead use the
 	:ref:`transpose` script separately for demonstration purposes.
 
-The `SConscript`_ file includes all major elements of a `SflE`_ project: setup blocks
-defining constant values, inputs, outputs, and scripts, as well as several demonstration
-processing modules.
+The `demo_simple SConscript`_ file includes all major elements of a `SflE`_ project:
+setup blocks defining constant values, inputs, outputs, and scripts, as well as
+several demonstration processing modules.
 
 Imports
 ~~~~~~~
@@ -182,3 +182,8 @@ simple plain text report.
 .. literalinclude:: ../../demo_simple/SConscript
 	:start-after:	StartOutput
 	:end-before:	EndOutput
+
+It is _critical_ that any files you wish to produce for a project are marked as
+``Default``.  Other files will only be created if specifically requested by an
+`SCons`_ call.  Only ``Default`` files, and any files they depend on, are expected
+outputs of `SflE`_ projects.

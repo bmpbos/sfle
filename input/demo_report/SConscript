@@ -12,3 +12,4 @@ c_fileProgReport		= File( sfle.d( sfle.c_strDirSrc, "report.py" ) )
 pE = DefaultEnvironment( )
 
 sfle.sphinx( pE, c_fileInputDataPCL, c_fileProgReport, c_fileIndexHTML )
+Default( c_fileIndexHTML )

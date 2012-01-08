@@ -18,16 +18,23 @@ import sys
 import threading
 import urllib
 
-c_strDirData	= "data/"
-c_strDirDoc		= "doc/"
-c_strDirEtc		= "etc/"
-c_strDirSrc		= "src/"
-c_strDirTmp		= "tmp/"
+c_strDirData			= "data/"
+c_strDirDoc				= "doc/"
+c_strDirEtc				= "etc/"
+c_strDirSrc				= "src/"
+c_strDirTmp				= "tmp/"
 
-c_strSufHTML	= ".html"
-c_strSufRST		= ".rst"
+c_strSufHTML			= ".html"
+c_strSufPDF				= ".pdf"
+c_strSufPY				= ".py"
+c_strSufR				= ".R"
+c_strSufRData			= ".RData"
+c_strSufRST				= ".rst"
+c_strSufTSV				= ".tsv"
 
-c_logrSflE		= logging.getLogger( "sfle" )
+c_strProgInlinedocsR	= "#" + c_strDirSrc + "inlinedocs.R"
+
+c_logrSflE				= logging.getLogger( "sfle" )
 lghn = logging.StreamHandler( sys.stderr )
 lghn.setFormatter( logging.Formatter( '%(asctime)s %(levelname)10s %(module)s.%(funcName)s@%(lineno)d %(message)s' ) )
 c_logrSflE.addHandler( lghn )
@@ -356,6 +363,39 @@ def rst_table( aaTable, ostm, fHeader = True ):
 	return True
 
 #===============================================================================
+# R inlinedocs utilities
+#===============================================================================
+
+def inlinedocs( pE, fileIn, fileOut, fileDirTmp = None ):
+
+	# Default to the same intermediate directory as the output file.	
+	if not fileDirTmp:
+		fileDirTmp = os.path.dirname( str(fileOut) )
+	# But the inlinedocs intermediate output is actually a whole nested directory.
+	fileDirTmp = pE.Dir( d( fileDirTmp, os.path.basename( str(fileIn) ) ) )
+	
+	def funcID( target, source, env ):
+		strT, astrSs = ts( target, source )
+		strProg, strIn = astrSs[:2]
+		return ex( (cat( strIn ), "|", strProg, os.path.dirname( strT )) )
+	# Use the guaranteed DESCRIPTION file as a marker for the entire
+	# inlinedocs generated directory.
+	fileDesc = d( fileDirTmp, "DESCRIPTION" )
+	pE.Command( fileDesc, [c_strProgInlinedocsR, fileIn], funcID )
+	
+	def funcPDF( target, source, env ):
+		strT, astrSs = ts( target, source )
+		# We want every file from the "man" subdirectory of the intermediate package.
+		strDir = d( os.path.dirname( astrSs[0] ), "man" )
+		# --force overwrites output PDF if present.
+		# --no-preview prevents the output PDF from being automatically opened.
+		# I honestly don't know what --batch does.
+		# *.Rd is a bit clunky, but we have no way to know beforehand what files
+		# will actually be generated during the R documentation process.
+		return ex( ("R CMD Rd2pdf --batch --force --no-preview %s/*.Rd" % strDir, "-o", strT) )
+	return pE.Command( fileOut, fileDesc, funcPDF )
+
+#===============================================================================
 # SConstruct helper functions
 #===============================================================================
 
@@ -542,8 +582,7 @@ class CProcessor:
 	def pipeline( pE, apPipeline, afileIn ):
 
 		afileIn = afileIn or []
-		if not iscollection( apPipeline ):
-			apPipeline = (apPipeline,)		
+		apPipeline, afileIn = (( p if iscollection( p ) else (p,) ) for p in (apPipeline, afileIn))
 		for apProc in apPipeline:
 			if not iscollection( apProc ):
 				apProc = (apProc,)
@@ -557,9 +596,9 @@ class CProcessor:
 	def __init__( self, strID, pFrom, pCommand, pTo ):
 
 		self.m_strID = strID
-		self.m_pFrom = pFrom
+		self.m_pFrom = pFrom or CTarget( )
 		self.m_pCommand = pCommand
-		self.m_pTo = pTo
+		self.m_pTo = pTo or CTarget( )
 
 	def in2out( self, fileIn ):
 		

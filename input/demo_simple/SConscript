@@ -83,11 +83,13 @@ Processing modules 4-5
 ======================
 
 Create our two main output files, a merged normalized PCL and a plain text
-report describing it.
+report describing it.  Critical that the report is ``Default``, which
+means it will be produced as a target, as will all files it depends on.
 """
 
 # StartOutput
 sfle.pipe( pE, fileTSV, c_fileProgTranspose, c_fileMergedPCL )
 
 sfle.pipe( pE, c_fileMergedPCL, c_fileProgReport, c_fileReportTXT )
+Default( c_fileReportTXT )
 # EndOutput

@@ -1,3 +1,4 @@
+.. _Bitbucket:			http://www.bitbucket.org/
 .. _Cygwin:				http://www.cygwin.com/
 .. _LaTeX:				http://www.latex-project.org/
 .. _make:				http://www.gnu.org/software/make/
