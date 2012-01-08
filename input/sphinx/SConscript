@@ -24,7 +24,7 @@ c_fileProgUnitTests		= File( sfle.d( sfle.c_strDirSrc, "unittests.py" ) )
 c_afileProgsPY			= [c_fileProgSflE, c_fileProgArgParser, c_fileProgGenerateTable,
 	c_fileProgGrepRows, c_fileProgMergeTables, c_fileProgSubsample, c_fileProgTranspose,
 	c_fileProgUnitTests, c_fileProgVitals]
-c_afileProgsR			= [c_fileProgInlinedocs]
+c_afileProgsR			= [c_fileProgInlinedocs, c_fileProgTestthat]
 
 pE = DefaultEnvironment( )
 
@@ -44,7 +44,7 @@ for fileOut, fDoctest in ((c_fileIndexHTML, False), (c_fileSphinxTXT, True)):
 		Requires( pCur, pPrev )
 	pPrev = pCur
 
-sfle.scmd( pE, "python -m doctest -v", c_fileDoctestTXT, [[True, f] for f in c_afileProgsPY] )
+sfle.doctest( pE, c_afileProgsPY, c_fileDoctestTXT )
 Default( c_fileDoctestTXT )
 
 for fileR in c_afileProgsR:

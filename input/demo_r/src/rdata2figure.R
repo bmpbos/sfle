@@ -158,5 +158,6 @@ pArgs <- add_option( pArgs,	c("-v", "--verbosity"),	type = "integer",
 # That is, if it's true we're being called as a command line script;
 # if it's false, we're being sourced or otherwise included, such as for
 # library or inlinedocs.
-if( identical( environment( ), globalenv( ) ) ) {
+if( identical( environment( ), globalenv( ) ) &&
+	!length( grep( "^source\\(", sys.calls( ) ) ) ) {
 	main( pArgs ) }

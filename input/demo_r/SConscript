@@ -10,6 +10,8 @@ Header
 Constant and file definitions.
 """
 
+c_strPreTest			= "test_"
+
 c_fileInputDataPCL		= File( sfle.d( fileDirInput, "data.pcl.gz" ) )
 
 c_fileProgData2RData	= File( sfle.d( sfle.c_strDirSrc, "data2rdata.R" ) )
@@ -65,3 +67,18 @@ for fileProg in c_afileProgs:
 	filePDF = File( sfle.d( fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufPDF ) ) )
 	sfle.inlinedocs( pE, fileProg, filePDF, fileDirTmp )
 	Default( filePDF )
+
+"""
+Processing module 5
+===================
+
+Test each R script using the testthat library.
+"""
+
+for fileProg in c_afileProgs:
+# StartTestthat
+	fileTXT = File( sfle.d( fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufTXT ) ) )
+	fileDir = Dir( sfle.d( fileDirSrc, c_strPreTest + sfle.rebase( fileProg, sfle.c_strSufR ) ) )
+	sfle.testthat( pE, fileProg, fileDir, fileTXT )
+	Default( fileTXT )
+# EndTestthat

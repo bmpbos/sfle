@@ -60,8 +60,7 @@ Constants
 
 Like any standard script or program, a `SflE`_ workflow should define its constants
 at the top of ``SConscript``.  These can include configuration values, but as `SflE`_
-is mainly a file processing environment, they'll often include filename suffixes
-(and sometimes prefixes):
+is mainly a file processing environment, they'll often include filename components:
 
 .. literalinclude:: ../../demo_simple/SConscript
 	:start-after:	StartConstants

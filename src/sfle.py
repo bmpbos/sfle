@@ -25,14 +25,17 @@ c_strDirSrc				= "src/"
 c_strDirTmp				= "tmp/"
 
 c_strSufHTML			= ".html"
+c_strSufPCL				= ".pcl"
 c_strSufPDF				= ".pdf"
 c_strSufPY				= ".py"
 c_strSufR				= ".R"
 c_strSufRData			= ".RData"
 c_strSufRST				= ".rst"
 c_strSufTSV				= ".tsv"
+c_strSufTXT				= ".txt"
 
 c_strProgInlinedocsR	= "#" + c_strDirSrc + "inlinedocs.R"
+c_strProgTestthatR		= "#" + c_strDirSrc + "testthat.R"
 
 c_logrSflE				= logging.getLogger( "sfle" )
 lghn = logging.StreamHandler( sys.stderr )
@@ -180,7 +183,7 @@ def iscollection( pValue ):
 
 def ex( pCmd, strOut = None ):
 	
-	strCmd = pCmd if isinstance( pCmd, str ) else " ".join( pCmd )
+	strCmd = pCmd if isinstance( pCmd, str ) else " ".join( str(p) for p in pCmd )
 	sys.stdout.write( "%s" % strCmd )
 	sys.stdout.write( ( ( " > %s" % quote( strOut ) ) if strOut else "" ) + "\n" )
 	if not strOut:
@@ -394,6 +397,53 @@ def inlinedocs( pE, fileIn, fileOut, fileDirTmp = None ):
 		# will actually be generated during the R documentation process.
 		return ex( ("R CMD Rd2pdf --batch --force --no-preview %s/*.Rd" % strDir, "-o", strT) )
 	return pE.Command( fileOut, fileDesc, funcPDF )
+
+#===============================================================================
+# Python doctest and R testthat utilities
+#===============================================================================
+
+def doctest( pE, afileProgs, fileOut ):
+	
+	if not iscollection( afileProgs ):
+		afileProgs = (afileProgs,)
+	return scmd( pE, "python -m doctest -v", fileOut, [[True, f] for f in afileProgs] )
+
+def testthat( pE, fileProg, fileDir, fileOut ):
+	"""
+	Uses the ``testthat`` R library to run unit tests on an R script.  Executes
+	all test files from the requested directory and deposits a report in the
+	given output file.
+	
+	.. warning::
+	
+		Test script file names in ``fileDir`` *must* begin with the string "test-"
+		in order to be executed.
+	
+	:param	pE:			SCons environment in which rules are created
+	:type	pE:			Environment
+	:param	fileProg:	Input R script to be tested
+	:type	fileProg:	File
+	:param	fileDir:	Input directory of R script unit tests
+	:type	fileDir:	Dir
+	:param	fileOut:	Output text file containing test report
+	:type	fileOut:	File
+	:returns:			File list -- Output report file
+	
+	.. note::
+	
+		``Glob`` is used to assign all R files in the requested directory as
+		dependencies for the output file.
+	
+	>>> testthat( DefaultEnvironment( ), "testme.R", "src/test_testme", "testreport.txt" ) #doctest: +SKIP
+	[<File testreport.txt>]
+	"""
+	
+	def funcTT( target, source, env, fileDir = fileDir ):
+		strT, astrSs = ts( target, source )
+		strProg, strIn = astrSs[:2]
+		return ex( (strProg, strIn, fileDir), strT )
+	return pE.Command( fileOut, [c_strProgTestthatR, fileProg] +
+		pE.Glob( d( fileDir, "*" + c_strSufR ) ), funcTT )
 
 #===============================================================================
 # SConstruct helper functions

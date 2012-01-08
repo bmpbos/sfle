@@ -14,6 +14,7 @@ c_fileProgGrepRows		= File( sfle.d( sfle.c_strDirSrc, "grep_rows.py" ) )
 c_fileProgInlinedocs	= File( sfle.c_strProgInlinedocsR )
 c_fileProgMergeTables	= File( sfle.d( sfle.c_strDirSrc, "merge_tables.py" ) )
 c_fileProgSubsample		= File( sfle.d( sfle.c_strDirSrc, "subsample.py" ) )
+c_fileProgTestthat		= File( sfle.c_strProgTestthatR )
 c_fileProgTranspose		= File( sfle.d( sfle.c_strDirSrc, "transpose.py" ) )
 c_fileProgVitals		= File( sfle.d( sfle.c_strDirSrc, "vitals.py" ) )
 

@@ -118,5 +118,6 @@ pArgs <- OptionParser( usage = "%prog <output_dir> < <input.R>
 Runs inlinedocs on a single source file on standard input and produces an R
 documentation package in the specified output directory." )
 
-if( identical( environment( ), globalenv( ) ) ) {
+if( identical( environment( ), globalenv( ) ) &&
+	!length( grep( "^source\\(", sys.calls( ) ) ) ) {
 	main( pArgs ) }
