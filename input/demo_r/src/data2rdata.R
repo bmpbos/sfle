@@ -123,7 +123,7 @@ main <- function( pArgs ) {
 #	parse_args above in main must be called with positional_arguments = TRUE.
 #	optparse doesn't do anything sophisticated with positional arguments.
 
-pArgs <- OptionParser( usage = "%prog <output.RData> <input.pcl>
+pArgs <- OptionParser( usage = "%prog <output.RData> <input.tsv>
 
 A simple demonstration of an R script to cache input data as an .RData output file.
 Reads a tab-delimited text grayscale image matrix and precalculates density plots of
