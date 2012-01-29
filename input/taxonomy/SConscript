@@ -1,0 +1,131 @@
+# StartImport
+import sfle
+import sfleoo
+import sys
+from pandas import *
+
+Import( "*" )
+# EndImport
+
+
+# User-defined local funtions
+def alnum( s ):
+    return "".join([ss if ss.isalnum() else '_' for ss in s])
+
+def extract_ncbi_taxonomy( io ):
+    import tarfile
+    import collections
+    tar = tarfile.open(io.inpf[0])
+    tree = collections.defaultdict(list)
+    id2names = dict([(int(v[0]),alnum(v[1])) 
+                    for v in (l.strip().split('\t|\t') 
+                        for l in tar.extractfile("names.dmp").readlines()) 
+                            if v[3][:-2] == "scientific name"])
+    names2id = dict(((v,k) for k,v in id2names.items()))
+    for c,f,t in (l.strip().split('\t|\t')[:3] 
+                for l in  tar.extractfile("nodes.dmp").readlines()):
+        if c != f:
+            tree[int(f)].append(int(c))
+    root = 'root' if 'root' not in io.args else io.args['root']
+    with open( io.outf[0], 'w' ) as outf:
+        def print_rec( cl, s = "root" ):
+            if not tree[cl]:
+                outf.write( s +"\n" ) 
+            for v in tree[cl]:
+                print_rec( v, s + "." + id2names[v] )
+        print_rec( names2id[root], root )
+
+
+def process_img_taxonomy( io ):
+    df = DataFrame.from_csv(io.inpf[0],sep='\t')
+    tax_levs = [ ('d__','Domain'),('p__','Phylum'),('c__','Class'),
+                 ('o__','Order'),('f__','Family'),('g__','Genus'),
+                 ('s__','Species'),('o__','Strain') ]
+    
+    outs = ( ".".join( [alnum(df[v][ind]) for k,v in tax_levs] )
+                for ind in df.index 
+                    if 'Domain' not in io.args or 
+                        io.args['Domain'] == df['Domain'][ind] )
+    io.out_tab(sorted(outs))
+# END User-defined local funtions
+
+oo = sfleoo.ooSfle(  fileDirOutput = fileDirOutput, fileDirTmp = fileDirTmp )
+
+"""
+Processing module 1
+===================
+
+NCBI taxonomy
+"""
+# URL
+ncbi_tax_url = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+
+# StartOutFiles
+ncbi_full_taxonomy = oo.fout( "ncbi_full.txt" )
+ncbi_bacteria_taxonomy = oo.fout( "ncbi_bacteria_full.txt" )
+ncbi_archaea_taxonomy = oo.fout( "ncbi_archaea_full.txt" )
+ncbi_staph_taxonomy = oo.fout( "ncbi_staph_full.txt" )
+ncbi_tax_dump = oo.ftmp( "taxdump.tar.gz" ) # tmp file
+# EndOutFiles
+
+# StartPrograms
+f_extract = extract_ncbi_taxonomy
+# EndPrograms
+
+# StartDownload
+oo.download( ncbi_tax_url, ncbi_tax_dump )
+# EndDownload
+
+# StartExtract
+oo.f( ncbi_tax_dump, ncbi_full_taxonomy, f_extract )
+oo.f( ncbi_tax_dump, ncbi_bacteria_taxonomy, f_extract, 
+      root = 'Bacteria' )
+oo.f( ncbi_tax_dump, ncbi_archaea_taxonomy, f_extract,
+      root = 'Archaea' )
+oo.f( ncbi_tax_dump, ncbi_staph_taxonomy, f_extract, 
+      root = 'Staphylococcus' )
+# EndExtract
+
+Default( [ ncbi_full_taxonomy, ncbi_bacteria_taxonomy, 
+           ncbi_archaea_taxonomy, ncbi_staph_taxonomy] )
+
+
+"""
+Processing module 2
+===================
+
+IMG JGI taxxonomy (version 3.5, Jan 2012 from static file)
+"""
+
+# StartInFiles
+img_tax_dump = oo.fin( "img350.txt" )
+# EndInFiles
+
+# StartOutFiles
+img_full_taxonomy = oo.fout( "img_full.txt" )
+img_bacteria_taxonomy = oo.fout( "img_bacterial.txt" )
+img_archaea_taxonomy = oo.fout( "img_archaeal.txt" )
+img_microbia_taxonomy = oo.fout( "img_microbial.txt" )
+# EndOutFiles
+
+# StartPrograms 
+f_extract = process_img_taxonomy
+cat = "cat"
+# EndPrograms
+
+# StartExtract
+oo.f( img_tax_dump, img_full_taxonomy, f_extract )
+oo.f( img_tax_dump, img_bacteria_taxonomy, f_extract ,
+      Domain = 'Bacteria' )
+oo.f( img_tax_dump, img_archaea_taxonomy, f_extract ,
+      Domain = 'Archaea' )
+oo.ext( [img_bacteria_taxonomy, img_archaea_taxonomy], 
+        img_microbia_taxonomy, cat ) 
+# EndExtract
+
+Default( [ img_full_taxonomy, img_bacteria_taxonomy, 
+           img_archaea_taxonomy, img_microbia_taxonomy] )
+
+
+
+
