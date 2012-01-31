@@ -2,52 +2,15 @@
 import sfle
 import sfleoo
 import sys
+import collections
+import math
 from pandas import *
 
 Import( "*" )
-# EndImport
 
-
-# User-defined local funtions
-def alnum( s ):
-    return "".join([ss if ss.isalnum() else '_' for ss in s])
-
-def extract_ncbi_taxonomy( io ):
-    import tarfile
-    import collections
-    tar = tarfile.open(io.inpf[0])
-    tree = collections.defaultdict(list)
-    id2names = dict([(int(v[0]),alnum(v[1])) 
-                    for v in (l.strip().split('\t|\t') 
-                        for l in tar.extractfile("names.dmp").readlines()) 
-                            if v[3][:-2] == "scientific name"])
-    names2id = dict(((v,k) for k,v in id2names.items()))
-    for c,f,t in (l.strip().split('\t|\t')[:3] 
-                for l in  tar.extractfile("nodes.dmp").readlines()):
-        if c != f:
-            tree[int(f)].append(int(c))
-    root = 'root' if 'root' not in io.args else io.args['root']
-    with open( io.outf[0], 'w' ) as outf:
-        def print_rec( cl, s = "root" ):
-            if not tree[cl]:
-                outf.write( s +"\n" ) 
-            for v in tree[cl]:
-                print_rec( v, s + "." + id2names[v] )
-        print_rec( names2id[root], root )
-
-
-def process_img_taxonomy( io ):
-    df = DataFrame.from_csv(io.inpf[0],sep='\t')
-    tax_levs = [ ('d__','Domain'),('p__','Phylum'),('c__','Class'),
-                 ('o__','Order'),('f__','Family'),('g__','Genus'),
-                 ('s__','Species'),('o__','Strain') ]
-    
-    outs = ( ".".join( [alnum(df[v][ind]) for k,v in tax_levs] )
-                for ind in df.index 
-                    if 'Domain' not in io.args or 
-                        io.args['Domain'] == df['Domain'][ind] )
-    io.out_tab(sorted(outs))
-# END User-defined local funtions
+# There should be a much better way to import locl functions than this...
+sys.path.append("src/")
+from lfuncs import *
 
 oo = sfleoo.ooSfle(  fileDirOutput = fileDirOutput, fileDirTmp = fileDirTmp )
 
@@ -94,7 +57,7 @@ Default( [ ncbi_full_taxonomy, ncbi_bacteria_taxonomy,
 Processing module 2
 ===================
 
-IMG JGI taxxonomy (version 3.5, Jan 2012 from static file)
+IMG JGI taxonomy (version 3.5, Jan 2012 from static file)
 """
 
 # StartInFiles
@@ -127,5 +90,61 @@ Default( [ img_full_taxonomy, img_bacteria_taxonomy,
            img_archaea_taxonomy, img_microbia_taxonomy] )
 
 
+"""
+Processing module 3
+===================
 
+IMG JGI taxonomy screening and processing 
+"""
+
+# StartInFiles
+img_tax_dump = oo.fin( "img350.txt" )
+# EndInFiles
+
+# StartOutFiles
+img_bac_clean_taxonomy = oo.fout( "img_bac_clean.txt" )
+img_bac_clean_tree = oo.fout( "img_bac_clean.tree.txt" )
+img_bac_circ_img = oo.fout( "img_bac_clean.png" )
+img_bac_clean_annot = oo.fout( "img_bac_clean.annot.txt" )
+img_bac_circ_annot = oo.fout( "img_bac_circ.annot.txt" )
+img_arc_clean_taxonomy = oo.fout( "img_arc_clean.txt" )
+img_arc_clean_tree = oo.fout( "img_arc_clean.tree.txt" )
+img_arc_circ_img = oo.fout( "img_arc_clean.png" )
+img_arc_clean_annot = oo.fout( "img_arc_clean.annot.txt" )
+img_arc_circ_annot = oo.fout( "img_arc_circ.annot.txt" )
+# EndOutFiles
+
+# StartPrograms 
+f_screen = screen_img_taxonomy 
+f_extract = process_img_taxonomy
+f_circlader_annotate = annotate_img 
+e_circlader_annotate = "circlader_annotate.py"
+e_circlader = "circlader.py"
+# EndPrograms
+
+oo.f( img_tax_dump, img_bac_clean_taxonomy, f_screen,
+      Domain = 'Bacteria', min_CDSs = 250, min_CDS_perc = 50.0, 
+      min_genome_size = 100000 )
+oo.f( img_bac_clean_taxonomy, img_bac_clean_tree, f_extract ) 
+oo.f( [ img_bac_clean_tree, img_bac_clean_taxonomy], 
+        img_bac_clean_annot, f_circlader_annotate )
+oo.ext( img_bac_clean_tree, img_bac_circ_annot, e_circlader_annotate,
+        annot = img_bac_clean_annot, deps = img_bac_clean_annot,
+        outpipe = False)
+oo.ext( img_bac_circ_annot, img_bac_circ_img, e_circlader, outpipe = False )
+
+oo.f( img_tax_dump, img_arc_clean_taxonomy, f_screen,
+      Domain = 'Archaea', min_CDSs = 250, min_CDS_perc = 50.0, 
+      min_genome_size = 100000 )
+oo.f( img_arc_clean_taxonomy, img_arc_clean_tree, f_extract ) 
+oo.f( [ img_arc_clean_tree, img_arc_clean_taxonomy], 
+        img_arc_clean_annot, f_circlader_annotate )
+oo.ext( img_arc_clean_tree, img_arc_circ_annot, e_circlader_annotate,
+        annot = img_arc_clean_annot, deps = img_arc_clean_annot,
+        outpipe = False)
+oo.ext( img_arc_circ_annot, img_arc_circ_img, e_circlader, outpipe = False )
+
+Default( [ 
+           img_arc_circ_img, img_bac_circ_img
+        ] ) 
 

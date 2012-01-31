@@ -64,7 +64,7 @@ class IO:
         split_f = lambda x: x.split(tok) if split else x
         return (split_f(ll) for ll in 
                     (strip_f(l) for l in it)
-                        if ll[0] != comment)
+                        if ll and ll[0] != comment)
  
     def __inp_dict__( self, it, col_key = 0, col_val = 1, 
                       key_join = '_', val_join = '\t',
@@ -131,9 +131,10 @@ class ooSfle:
     def ftmp( self, fn ):
         return str(self.lenv.File( sfle.d( self.fileDirTmp, fn ) ))
 
-    def f(  self, srs, tgt, func, srs_dep = [], tgt_dep = [], 
+    def f(  self, srs, tgt, func, srs_dep = None, tgt_dep = None, 
             __kwargs_dict__ = None, fname = None, **kwargs ):
-
+        if srs_dep is None: srs_dep = []
+        if tgt_dep is None: tgt_dep = []
         if srs is None:
             nsrs = []
         else:
@@ -148,7 +149,7 @@ class ooSfle:
                         ssrs = source[lsrs:], stgt = target[ltgt:],
                         kwargs = __kwargs_dict__ if __kwargs_dict__ else kwargs )
             func( lio )
-        
+       
         _f_.__name__ = "oo scons: "+(fname if fname else func.func_name)
         return self.lenv.Command( ntgt + ntgt_dep, nsrs + nsrs_dep, _f_ )
 
@@ -162,7 +163,7 @@ class ooSfle:
             sb.call( cmd, stdout = io.out_open, stdin = io.inp_open )
         self.f( fr, to, _extex_, deps = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
 
-    def ext( self, fr, to, excmd, outpipe = True, deps = [], __kwargs_dict__ = None, **kwargs ):
+    def ext( self, fr, to, excmd, outpipe = True, verbose = False, deps = None, __kwargs_dict__ = None, **kwargs ):
         import subprocess as sb
         if __kwargs_dict__ and kwargs:
             kwargs.update( __kwargs_dict__ )
@@ -178,8 +179,15 @@ class ooSfle:
                 elif len(k) > 1:
                     cmd += ["--"+k] + [str(v)] if v else []
             cmd += io.inpf
-            sb.call( cmd, stdout = io.out_open if outpipe else None)
-        return self.f( fr, to, _ext_, deps = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
+            if not outpipe:
+                cmd += io.outf
+            if verbose:
+                sys.stdout.write("oo scons ext: " + " ".join(cmd) + (' > '+ io.outf[0] if outpipe else '')+"\n")
+            if outpipe:
+                sb.call( cmd, stdout = io.out_open )
+            else:
+                sb.call( cmd )
+        return self.f( fr, to, _ext_, srs_dep = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
 
 
     def cat( self, srs, tgt, srs_dep = [], tgt_dep = [], **kwargs ):
