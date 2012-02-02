@@ -67,18 +67,22 @@ def annotate_img( io ):
     n = len(clades)
     ew = (1.0/math.log(float(n)))**3*100.0
     annots = ["*\twidth\t1\t1.0\n"]
-    annots += ["*\twidth\t2\t0.8\n"]
+    annots += ["*\twidth\t4\t0.8\n"]
     annots += ["*\tbranch_line_width\t"+str(ew)]
     annots += ["*\tannotation_ext_offset\t0.001\n"]
     annots += ["*\tbranch_acestor_clade_color\t0\n"]
     annots += ["*\tsub_branches_opening_point\t0.75\n"]
     annots += ["*\tedge_width\t1\t0.0\n"]
+    annots += ["*\tedge_width\t2\t0.0\n"]
+    annots += ["*\tedge_width\t3\t0.0\n"]
     annots += ["*\theight\t1\t0.5\n"]
-    annots += ["\t".join( [k,'height','2',str(df['CDS Count'][int(v)]/nmax*3.0) ])
+    annots += ["*\theight\t2\t0.5\n"]
+    annots += ["*\theight\t3\t0.5\n"]
+    annots += ["\t".join( [k,'height','4',str(df['CDS Count'][int(v)]/nmax*3.0) ])
                     for k,v in clades.items()]
-    annots += ["\t".join( [k,'fill_color','2','#DDD000' ])
+    annots += ["\t".join( [k,'fill_color','4','#DDD000' ])
                     for k,v in clades.items() if df['Status'][int(v)] == 'Draft']
-    annots += ["\t".join( [k,'fill_color','2','#00AA00' ])
+    annots += ["\t".join( [k,'fill_color','4','#00AA00' ])
                     for k,v in clades.items() if df['Status'][int(v)] == 'Finished']
     annots += ["\t".join( [k,'alpha','1',str(df['16S rRNA Count'][int(v)]/rmax*3.0) ])
                     for k,v in clades.items() if df['16S rRNA Count'][int(v)] > 0 ]
@@ -86,6 +90,18 @@ def annotate_img( io ):
                     for k,v in clades.items() if df['16S rRNA Count'][int(v)] > 0 ]
     annots += ["\t".join( [k,'fill_color','1','#FF0000']) 
                     for k,v in clades.items() if df['16S rRNA Count'][int(v)] <= 0 ]
+    annots += ["\t".join( [k,'fill_color','2','#00FF00' ])
+                    for k,v in clades.items() if df['Gram Staining'][int(v)] == 'Gram+' ]
+    annots += ["\t".join( [k,'fill_color','2','#FF0000' ])
+                    for k,v in clades.items() if df['Gram Staining'][int(v)] == 'Gram-' ]
+    oxy2col = { 'Obligate aerobe':'#00EE00',
+                'Aerobe':'#008B00',
+                'Microaerophilic':'#003000',
+                'Facultative':'#000000',
+                'Anaerobe':'#8B0000',
+                'Obligate anaerobe':'#DD0000' }
+    annots += ["\t".join( [k,'fill_color','3',oxy2col[df['Oxygen Requirement'][int(v)]] ])
+                    for k,v in clades.items() if df['Oxygen Requirement'][int(v)] != '-1' ]
     fams = collections.defaultdict(list)
     phys = collections.defaultdict(list)
     for c,t in clades.items():

@@ -61,7 +61,7 @@ IMG JGI taxonomy (version 3.5, Jan 2012 from static file)
 """
 
 # StartInFiles
-img_tax_dump = oo.fin( "img350.txt" )
+img_tax_dump = "/n/home01/nsegata/img350.txt" # oo.fin( "img350.txt" )
 # EndInFiles
 
 # StartOutFiles

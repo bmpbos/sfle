@@ -3,6 +3,7 @@ import SCons.Environment as e
 import os
 import sys
 import sfle
+import time
 
 class IO:
 
@@ -132,24 +133,35 @@ class ooSfle:
         return str(self.lenv.File( sfle.d( self.fileDirTmp, fn ) ))
 
     def f(  self, srs, tgt, func, srs_dep = None, tgt_dep = None, 
-            __kwargs_dict__ = None, fname = None, **kwargs ):
+            __kwargs_dict__ = None, fname = None, attempts = 1, **kwargs ):
         if srs_dep is None: srs_dep = []
         if tgt_dep is None: tgt_dep = []
         if srs is None:
             nsrs = []
         else:
             nsrs = [srs] if isinstance( srs, str) else srs
-        nsrs_dep = [srs_dep] if isinstance( srs, str) else srs_dep
-        ntgt = [tgt] if isinstance( tgt, str) else tgt
-        ntgt_dep = [tgt_dep] if isinstance( tgt, str) else tgt_dep
-        
+        if tgt is None:
+            ntgt = []
+        else:
+            ntgt = [tgt] if isinstance( tgt, str) else tgt
+        nsrs_dep = [srs_dep] if isinstance( srs_dep, str) else srs_dep
+        ntgt_dep = [tgt_dep] if isinstance( tgt_dep, str) else tgt_dep
+        att = attempts 
+ 
         def _f_( target, source, env ):
             lsrs, ltgt = len(nsrs), len(ntgt)
             lio = IO(   srs = source[:lsrs], tgt = target[:ltgt],
                         ssrs = source[lsrs:], stgt = target[ltgt:],
                         kwargs = __kwargs_dict__ if __kwargs_dict__ else kwargs )
-            func( lio )
-       
+            ret = 1
+            attempts = att
+            while ret and attempts:
+                ret = func( lio )
+                attempts -= 1
+                if attempts:
+                    time.sleep(2**(att-attempts))
+            return ret      
+ 
         _f_.__name__ = "oo scons: "+(fname if fname else func.func_name)
         return self.lenv.Command( ntgt + ntgt_dep, nsrs + nsrs_dep, _f_ )
 
@@ -163,7 +175,7 @@ class ooSfle:
             sb.call( cmd, stdout = io.out_open, stdin = io.inp_open )
         self.f( fr, to, _extex_, deps = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
 
-    def ext( self, fr, to, excmd, outpipe = True, verbose = False, deps = None, __kwargs_dict__ = None, **kwargs ):
+    def ext( self, fr, to, excmd, outpipe = True, verbose = False, attempts = 1, deps = None, out_deps = None, __kwargs_dict__ = None, **kwargs ):
         import subprocess as sb
         if __kwargs_dict__ and kwargs:
             kwargs.update( __kwargs_dict__ )
@@ -184,10 +196,10 @@ class ooSfle:
             if verbose:
                 sys.stdout.write("oo scons ext: " + " ".join(cmd) + (' > '+ io.outf[0] if outpipe else '')+"\n")
             if outpipe:
-                sb.call( cmd, stdout = io.out_open )
+                return sb.call( cmd, stdout = io.out_open )
             else:
-                sb.call( cmd )
-        return self.f( fr, to, _ext_, srs_dep = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
+                return sb.call( cmd )
+        return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
 
     def cat( self, srs, tgt, srs_dep = [], tgt_dep = [], **kwargs ):
@@ -206,11 +218,11 @@ class ooSfle:
         return self.f( srs, tgt, _cut_, srs_dep, tgt_dep, __kwargs_dict__ = kwargs, fname = "registered cut" )
 
 
-    def download( self, url, tgt, **kwargs ):
+    def download( self, url, tgt, attempts = 1, **kwargs ):
         if not url:
             url = re.sub( r'^.*\/', "", strURL )
         kwargs['url'] = url
         kwargs['o'] = tgt
         kwargs['z'] = tgt
-        self.ext( None, tgt, "curl", outpipe = False, __kwargs_dict__=kwargs) 
+        self.ext( None, None, "curl", verbose = True, outpipe = False, attempts = attempts, out_deps = tgt, __kwargs_dict__=kwargs) 
 
