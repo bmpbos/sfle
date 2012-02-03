@@ -60,6 +60,7 @@ Processing module 2
 IMG JGI taxonomy (version 3.5, Jan 2012 from static file)
 """
 
+"""
 # StartInFiles
 img_tax_dump = "/n/home01/nsegata/img350.txt" # oo.fin( "img350.txt" )
 # EndInFiles
@@ -88,7 +89,7 @@ oo.ext( [img_bacteria_taxonomy, img_archaea_taxonomy],
 
 Default( [ img_full_taxonomy, img_bacteria_taxonomy, 
            img_archaea_taxonomy, img_microbia_taxonomy] )
-
+"""
 
 """
 Processing module 3
@@ -112,6 +113,7 @@ img_arc_clean_tree = oo.fout( "img_arc_clean.tree.txt" )
 img_arc_circ_img = oo.fout( "img_arc_clean.png" )
 img_arc_clean_annot = oo.fout( "img_arc_clean.annot.txt" )
 img_arc_circ_annot = oo.fout( "img_arc_circ.annot.txt" )
+img_mic_clean_tree = oo.fout( "img_mic_clean.tree.txt" )
 # EndOutFiles
 
 # StartPrograms 
@@ -143,8 +145,9 @@ oo.ext( img_arc_clean_tree, img_arc_circ_annot, e_circlader_annotate,
         annot = img_arc_clean_annot, deps = img_arc_clean_annot,
         outpipe = False)
 oo.ext( img_arc_circ_annot, img_arc_circ_img, e_circlader, outpipe = False )
+oo.cat( [img_bac_clean_tree, img_arc_clean_tree], img_mic_clean_tree )
 
-Default( [ 
+Default( [ img_mic_clean_tree, 
            img_arc_circ_img, img_bac_circ_img
         ] ) 
 

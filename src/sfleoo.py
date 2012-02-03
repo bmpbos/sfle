@@ -175,7 +175,7 @@ class ooSfle:
             sb.call( cmd, stdout = io.out_open, stdin = io.inp_open )
         self.f( fr, to, _extex_, deps = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
 
-    def ext( self, fr, to, excmd, outpipe = True, verbose = False, attempts = 1, deps = None, out_deps = None, __kwargs_dict__ = None, **kwargs ):
+    def ext( self, fr, to, excmd, outpipe = True, verbose = False, attempts = 1, deps = None, out_deps = None, __kwargs_dict__ = None, args = None, long_args = '--', **kwargs ):
         import subprocess as sb
         if __kwargs_dict__ and kwargs:
             kwargs.update( __kwargs_dict__ )
@@ -187,14 +187,17 @@ class ooSfle:
                 if not k:
                     cmd += [str(v)]
                 elif len(k) == 1:
-                    cmd += ["-"+k] + [str(v)] if v else []
+                    cmd += ["-"+k] + ([str(v)] if v else [])
                 elif len(k) > 1:
-                    cmd += ["--"+k] + [str(v)] if v else []
+                    cmd += [long_args+k] + ([str(v)] if v else [])
+            if args:
+               for a in args:
+                   cmd += [a[0],a[1]] if type(a) in [list,tuple] else [a]
             cmd += io.inpf
             if not outpipe:
                 cmd += io.outf
             if verbose:
-                sys.stdout.write("oo scons ext: " + " ".join(cmd) + (' > '+ io.outf[0] if outpipe else '')+"\n")
+                sys.stdout.write("oo scons ext: " + " ".join(cmd) + (' > '+ io.outf[0] if outpipe and io.outf else '')+"\n")
             if outpipe:
                 return sb.call( cmd, stdout = io.out_open )
             else:
@@ -217,6 +220,24 @@ class ooSfle:
             io.out_tab( out )
         return self.f( srs, tgt, _cut_, srs_dep, tgt_dep, __kwargs_dict__ = kwargs, fname = "registered cut" )
 
+    # zip support need to be added
+    def extract( self, srs, tgt, files2extract = None  ):
+        if type(files2extract) is str:
+            files2extract = [files2extract]
+        assert( type(srs) is list and len(srs) == 1 or type(srs) is str)
+        assert( type(tgt) is list and len(tgt) == 1 or type(tgt) is str)
+        def __extract__( io ):
+            import tarfile
+            f = io.inpf[0]
+            if tarfile.is_tarfile(f):
+                with open(io.outf[0],'w') as outf:
+                    with tarfile.open( f ) as tf:
+                        membs = tf.getmembers()
+                        for m in membs:
+                            if not files2extract or m in files2extract:
+                                outf.writelines( tf.extractfile(m).readlines() )
+        return self.f( srs, tgt, __extract__ ) 
+            
 
     def download( self, url, tgt, attempts = 1, **kwargs ):
         if not url:
@@ -224,5 +245,53 @@ class ooSfle:
         kwargs['url'] = url
         kwargs['o'] = tgt
         kwargs['z'] = tgt
-        self.ext( None, None, "curl", verbose = True, outpipe = False, attempts = attempts, out_deps = tgt, __kwargs_dict__=kwargs) 
+        return self.ext( None, None, "curl", verbose = True, outpipe = False, attempts = attempts, out_deps = tgt, __kwargs_dict__=kwargs) 
+
+    def blastn( self, srs, tgt, srs_dep = None, tgt_dep = None, makedb = True,**kwargs ):
+        #inpf = srs if type(srs) is str else srs[0]
+        assert( type(srs) is list and len(srs) == 2 )
+	dbfs = [srs[1]+d for d in ['.nhr','.nin','.nsq']]
+        if makedb:
+            self.ext( [], [], 'makeblastdb', verbose = True, 
+                      deps = [srs[1]], out_deps = dbfs, 
+                      args = [('-dbtype','nucl'),('-in',srs[1]),('-out',srs[1])], 
+                      outpipe = False, long_args = '-' )
+	self.ext( [], tgt, 'blastn', deps = dbfs+[srs[0]], verbose = True, 
+                  args = [('-query',srs[0]),('-db',srs[1])], long_args = '-',
+                  __kwargs_dict__ = kwargs )
+    
+    def makeblastndb( self, srs, tgt = None, srs_dep = None, tgt_dep = None, **kwargs ):
+        #inpf = srs if type(srs) is str else srs[0]
+        tgt = srs if tgt is None else tgt
+	dbfs = [tgt+d for d in ['.nhr','.nin','.nsq']]
+        self.ext( [], [], 'makeblastdb', verbose = True, 
+                  deps = [srs], out_deps = dbfs, 
+                  args = [('-dbtype','nucl'),('-in',srs),('-out',tgt)], 
+                  outpipe = False, long_args = '-' )
+
+    def makeblastpdb( self, srs, tgt = None, srs_dep = None, tgt_dep = None, **kwargs ):
+        #inpf = srs if type(srs) is str else srs[0]
+        tgt = srs 
+	dbfs = [tgt+d for d in ['.phr','.pin','.psq']]
+        print dbfs
+        self.ext( [], [], 'makeblastdb', verbose = True, 
+                  deps = [srs], out_deps = dbfs, 
+                  args = [('-dbtype','prot'),('-in',srs),('-out',tgt)], 
+                  outpipe = False, long_args = '-' )
+
+    def blastp( self, srs, tgt, srs_dep = None, tgt_dep = None, makedb = True, **kwargs ):
+        #inpf = srs if type(srs) is str else srs[0]
+        assert( type(srs) is list and len(srs) == 2 )
+	dbfs = [srs[1]+d for d in ['.phr','.pin','.psq']]
+        """"
+        if makedb:
+            self.ext( [], [], 'makeblastdb', verbose = True, 
+                      deps = [srs[1]], out_deps = dbfs, 
+                      args = [('-dbtype','prot'),('-in',srs[1]),('-out',srs[1])], 
+                      outpipe = False, long_args = '-' )
+        """
+        self.ext( [], tgt, 'blastp', deps = dbfs+[srs[0]], verbose = True, 
+                  args = [('-query',srs[0]),('-db',srs[1])], long_args = '-',
+                  __kwargs_dict__ = kwargs )
+
 

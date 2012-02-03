@@ -1,0 +1,75 @@
+import sfle
+import sfleoo
+import sys
+
+Import( "*" )
+
+sys.path.append("src/")
+from mtol_funcs import *
+# EndImport
+
+oo = sfleoo.ooSfle(  fileDirOutput = fileDirOutput, fileDirTmp = fileDirTmp )
+
+g_faa_dir = "/n/CHB/data/img_w_v350/genes_faa/"
+l_microbial_taxonomy = "../../output/taxonomy/img_mic_clean.tree.txt" 
+
+taxa = dict([(l.strip().split('\t')[1],{}) for l in open(l_microbial_taxonomy)])
+
+for t in taxa:
+    taxa[t]['faa'] = "/".join( [g_faa_dir, t + ".genes.faa"] )
+    taxa[t]['faa_map'] = "/".join( [g_faa_dir, t + ".genes.txt"] )
+    taxa[t]['faaVSup'] = oo.ftmp( t+"_faaVSup.outfmt6.txt" )
+    taxa[t]['up'] = oo.ftmp( t+".up.txt" )
+
+img_tax_dump = oo.fin("img350.txt") # oo.fin( "img350.txt" )
+img_tax_dump1 = oo.ftmp("img350.1.txt") # oo.fin( "img350.txt" )
+
+u_mtol400_prots = "http://huttenhower.rc.fas.harvard.edu/sites/default/files/mtol400.faa.tar.bz2"
+
+t_mtol400_prots_bz2 = oo.ftmp( "mtol400.tar.bz2" )
+t_mtol400_prots = oo.ftmp( "mtol400.faa" )
+t_mtol400_nprots = oo.ftmp( "mtol400.txt" )
+t_mtol400_prots_sort = oo.ftmp( "mtol400.sort.faa" )
+t_mtol400_seeds = oo.ftmp( "mtol400.seeds.faa" )
+t_mtol400_wdb = oo.ftmp( "mtol400.seeds.wdb" )
+
+t_mtol_annot = oo.ftmp( "mtol400.annot.txt" )
+t_mtol_tree_annot = oo.ftmp( "mtol400.tree.xml" )
+t_mtol_tree_png = oo.fout( "mtol400.tree.png" )
+
+o_orgs2prots = oo.fout( "orgs2protIDs.txt" )
+o_orgs2up = oo.fout( "orgs2upIDs.txt" )
+
+usearch = "usearch5.1.221_i86linux32"
+
+
+oo.download( u_mtol400_prots, t_mtol400_prots_bz2 )
+oo.extract( t_mtol400_prots_bz2, t_mtol400_prots )
+
+oo.ext( [], [], usearch, deps = t_mtol400_prots, out_deps = t_mtol400_prots_sort, 
+        sort = t_mtol400_prots, output = t_mtol400_prots_sort ) 
+
+oo.ext( [], [], usearch, deps = t_mtol400_prots_sort, out_deps = t_mtol400_seeds, 
+        cluster = t_mtol400_prots_sort, seedsout = t_mtol400_seeds, id = 0.9 ) # counsout has a bug... 
+
+oo.ext( [], [], usearch, deps = t_mtol400_seeds, out_deps = t_mtol400_wdb, 
+        makewdb = t_mtol400_seeds, output = t_mtol400_wdb ) 
+
+for t,v in taxa.items():
+    oo.ext( [], [], usearch, deps = t_mtol400_wdb, out_deps = v['faaVSup'], 
+            wdb = t_mtol400_wdb, blast6out = v['faaVSup'], query = v['faa'],
+            evalue = 1e-40, verbose = True ) 
+    oo.f( v['faaVSup'], v['up'], screen_usearch_wdb )
+    oo.f( v['faa'], v['faa_map'], extract_o2g, t = t )
+oo.f( [v['up'] for v in taxa.values()], t_mtol400_nprots, merge_t2up_maps )
+oo.ext( [v['faa_map'] for v in taxa.values()], o_orgs2prots, "cat" )
+oo.f( [o_orgs2prots, t_mtol400_nprots], o_orgs2up, count_ups )
+oo.f( [img_tax_dump,o_orgs2up], [img_tax_dump1], img_add_mtol )
+
+oo.f( [ l_microbial_taxonomy, img_tax_dump1], 
+        t_mtol_annot, annotate_img_l )
+oo.ext( l_microbial_taxonomy, t_mtol_tree_annot, "circlader_annotate.py", annot = t_mtol_annot, deps = t_mtol_annot, outpipe = False )
+oo.ext( t_mtol_tree_annot, t_mtol_tree_png, "circlader.py", outpipe = False )
+ 
+Default( [t_mtol400_seeds,t_mtol400_nprots,o_orgs2prots,img_tax_dump1,t_mtol_tree_png]  )
+
