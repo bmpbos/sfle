@@ -1,0 +1,153 @@
+# StartImport
+import sfle
+import sfleoo
+import sys
+import collections
+import math
+from pandas import *
+
+Import( "*" )
+
+# There should be a much better way to import locl functions than this...
+sys.path.append("src/")
+from lfuncs import *
+
+oo = sfleoo.ooSfle(  fileDirOutput = fileDirOutput, fileDirTmp = fileDirTmp )
+
+"""
+Processing module 1
+===================
+
+NCBI taxonomy
+"""
+# URL
+ncbi_tax_url = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
+
+# StartOutFiles
+ncbi_full_taxonomy = oo.fout( "ncbi_full.txt" )
+ncbi_bacteria_taxonomy = oo.fout( "ncbi_bacteria_full.txt" )
+ncbi_archaea_taxonomy = oo.fout( "ncbi_archaea_full.txt" )
+ncbi_staph_taxonomy = oo.fout( "ncbi_staph_full.txt" )
+ncbi_tax_dump = oo.ftmp( "taxdump.tar.gz" ) # tmp file
+# EndOutFiles
+
+# StartPrograms
+f_extract = extract_ncbi_taxonomy
+# EndPrograms
+
+# StartDownload
+oo.download( ncbi_tax_url, ncbi_tax_dump )
+# EndDownload
+
+# StartExtract
+oo.f( ncbi_tax_dump, ncbi_full_taxonomy, f_extract )
+oo.f( ncbi_tax_dump, ncbi_bacteria_taxonomy, f_extract, 
+      root = 'Bacteria' )
+oo.f( ncbi_tax_dump, ncbi_archaea_taxonomy, f_extract,
+      root = 'Archaea' )
+oo.f( ncbi_tax_dump, ncbi_staph_taxonomy, f_extract, 
+      root = 'Staphylococcus' )
+# EndExtract
+
+Default( [ ncbi_full_taxonomy, ncbi_bacteria_taxonomy, 
+           ncbi_archaea_taxonomy, ncbi_staph_taxonomy] )
+
+
+"""
+Processing module 2
+===================
+
+IMG JGI taxonomy (version 3.5, Jan 2012 from static file)
+"""
+
+"""
+# StartInFiles
+img_tax_dump = "/n/home01/nsegata/img350.txt" # oo.fin( "img350.txt" )
+# EndInFiles
+
+# StartOutFiles
+img_full_taxonomy = oo.fout( "img_full.txt" )
+img_bacteria_taxonomy = oo.fout( "img_bacterial.txt" )
+img_archaea_taxonomy = oo.fout( "img_archaeal.txt" )
+img_microbia_taxonomy = oo.fout( "img_microbial.txt" )
+# EndOutFiles
+
+# StartPrograms 
+f_extract = process_img_taxonomy
+cat = "cat"
+# EndPrograms
+
+# StartExtract
+oo.f( img_tax_dump, img_full_taxonomy, f_extract )
+oo.f( img_tax_dump, img_bacteria_taxonomy, f_extract ,
+      Domain = 'Bacteria' )
+oo.f( img_tax_dump, img_archaea_taxonomy, f_extract ,
+      Domain = 'Archaea' )
+oo.ext( [img_bacteria_taxonomy, img_archaea_taxonomy], 
+        img_microbia_taxonomy, cat ) 
+# EndExtract
+
+Default( [ img_full_taxonomy, img_bacteria_taxonomy, 
+           img_archaea_taxonomy, img_microbia_taxonomy] )
+"""
+
+"""
+Processing module 3
+===================
+
+IMG JGI taxonomy screening and processing 
+"""
+
+# StartInFiles
+img_tax_dump = oo.fin( "img350.txt" )
+# EndInFiles
+
+# StartOutFiles
+img_bac_clean_taxonomy = oo.fout( "img_bac_clean.txt" )
+img_bac_clean_tree = oo.fout( "img_bac_clean.tree.txt" )
+img_bac_circ_img = oo.fout( "img_bac_clean.png" )
+img_bac_clean_annot = oo.fout( "img_bac_clean.annot.txt" )
+img_bac_circ_annot = oo.fout( "img_bac_circ.annot.txt" )
+img_arc_clean_taxonomy = oo.fout( "img_arc_clean.txt" )
+img_arc_clean_tree = oo.fout( "img_arc_clean.tree.txt" )
+img_arc_circ_img = oo.fout( "img_arc_clean.png" )
+img_arc_clean_annot = oo.fout( "img_arc_clean.annot.txt" )
+img_arc_circ_annot = oo.fout( "img_arc_circ.annot.txt" )
+img_mic_clean_tree = oo.fout( "img_mic_clean.tree.txt" )
+# EndOutFiles
+
+# StartPrograms 
+f_screen = screen_img_taxonomy 
+f_extract = process_img_taxonomy
+f_circlader_annotate = annotate_img 
+e_circlader_annotate = "circlader_annotate.py"
+e_circlader = "circlader.py"
+# EndPrograms
+
+oo.f( img_tax_dump, img_bac_clean_taxonomy, f_screen,
+      Domain = 'Bacteria', min_CDSs = 250, min_CDS_perc = 50.0, 
+      min_genome_size = 100000 )
+oo.f( img_bac_clean_taxonomy, img_bac_clean_tree, f_extract ) 
+oo.f( [ img_bac_clean_tree, img_bac_clean_taxonomy], 
+        img_bac_clean_annot, f_circlader_annotate )
+oo.ext( img_bac_clean_tree, img_bac_circ_annot, e_circlader_annotate,
+        annot = img_bac_clean_annot, deps = img_bac_clean_annot,
+        outpipe = False)
+oo.ext( img_bac_circ_annot, img_bac_circ_img, e_circlader, outpipe = False )
+
+oo.f( img_tax_dump, img_arc_clean_taxonomy, f_screen,
+      Domain = 'Archaea', min_CDSs = 250, min_CDS_perc = 50.0, 
+      min_genome_size = 100000 )
+oo.f( img_arc_clean_taxonomy, img_arc_clean_tree, f_extract ) 
+oo.f( [ img_arc_clean_tree, img_arc_clean_taxonomy], 
+        img_arc_clean_annot, f_circlader_annotate )
+oo.ext( img_arc_clean_tree, img_arc_circ_annot, e_circlader_annotate,
+        annot = img_arc_clean_annot, deps = img_arc_clean_annot,
+        outpipe = False)
+oo.ext( img_arc_circ_annot, img_arc_circ_img, e_circlader, outpipe = False )
+oo.cat( [img_bac_clean_tree, img_arc_clean_tree], img_mic_clean_tree )
+
+Default( [ img_mic_clean_tree, 
+           img_arc_circ_img, img_bac_circ_img
+        ] ) 
+

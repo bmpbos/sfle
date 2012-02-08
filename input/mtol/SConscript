@@ -1,0 +1,138 @@
+import sfle
+import sfleoo
+import sys
+
+Import( "*" )
+
+sys.path.append("src/")
+from mtol_funcs import *
+# EndImport
+
+oo = sfleoo.ooSfle(  fileDirOutput = fileDirOutput, fileDirTmp = fileDirTmp )
+
+g_faa_dir = "/n/CHB/data/img_w_v350/genes_faa/"
+g_all_faa = "/n/CHB/data/img_w_v350/all_prots.faa"
+l_microbial_taxonomy = "../../output/taxonomy/img_mic_clean.tree.txt" 
+
+taxa = dict([(l.strip().split('\t')[1],{}) for l in open(l_microbial_taxonomy)])
+
+for t in taxa:
+    taxa[t]['faa'] = "/".join( [g_faa_dir, t + ".genes.faa"] )
+    taxa[t]['faa_map'] = oo.ftmp( t + ".genes.txt" )
+    taxa[t]['faaVSup'] = oo.ftmp( t+"_faaVSup.outfmt6.txt" )
+    taxa[t]['up'] = oo.ftmp( t+".up.txt" )
+
+img_tax_dump = oo.fin("img350.txt") # oo.fin( "img350.txt" )
+img_tax_dump1 = oo.ftmp("img350.1.txt") # oo.fin( "img350.txt" )
+
+u_mtol400_prots = "http://huttenhower.rc.fas.harvard.edu/sites/default/files/mtol400.faa.tar.bz2"
+
+t_mtol400_prots_bz2 = oo.ftmp( "mtol400.tar.bz2" )
+t_mtol400_prots = oo.ftmp( "mtol400.faa" )
+t_mtol400_nprots = oo.ftmp( "mtol400.txt" )
+t_mtol400_prots_sort = oo.ftmp( "mtol400.sort.faa" )
+t_mtol400_seeds = oo.ftmp( "mtol400.seeds.faa" )
+t_mtol400_wdb = oo.ftmp( "mtol400.seeds.wdb" )
+
+t_mtol_annot = oo.ftmp( "mtol400.annot.txt" )
+t_mtol_tree_annot = oo.ftmp( "mtol400.tree.xml" )
+t_mtol_tree_png = oo.fout( "mtol400.tree.png" )
+t_arc_taxa1 = oo.ftmp( "arc_taxa.1.txt" )
+t_arc_taxa = oo.ftmp( "arc_taxa.txt" )
+
+s_fna_select = oo.fsrc( "fna_select.py" )
+s_aln_subsample = oo.fsrc( "aln_subsample.py" )
+
+all_prot_faa = oo.ftmp( "mtol400.all.faa" )
+all_prot_ids = oo.ftmp( "mtol400.all.txt" )
+
+mtol400_aln = oo.fout( "mtol400.aln.faa" )
+mtol400_nwk = oo.fout( "mtol400.nwk" )
+mtol400_png = oo.fout( "mtol400.png" )
+
+#t_mtol_prot_ids = oo.fout( "mtol400.p{0:04d}", range(400) )
+
+prots = {}
+for pn in range(400):
+    p = 'p{num:04d}'.format(num=pn)
+    prots[p] = {}
+    prots[p]['lin_list'] = oo.ftmp( ".".join(["mprot",p,"1","txt"]) )
+    prots[p]['ver_list'] = oo.ftmp( ".".join(["mprot",p,"2","txt"]) )
+    prots[p]['id_list'] = oo.ftmp( ".".join(["mprot",p,"txt"]) )
+    prots[p]['faa'] = oo.ftmp( ".".join(["mprot",p,"faa"]) )
+    prots[p]['aln'] = oo.ftmp( ".".join(["mprot",p,"aln"]) )
+    prots[p]['sub_aln'] = oo.ftmp( ".".join(["mprot",p,"sub","aln"]) )
+    prots[p]['aln_score'] = oo.ftmp( ".".join(["mprot",p,"aln","score"]) )
+    prots[p]['aln_len'] = max( int( max( int((400.0-pn)*30.0/400.0),1)**2 / 30.0), 4)
+
+o_orgs2prots = oo.fout( "orgs2protIDs.txt" ) 
+o_orgs2up = oo.fout( "orgs2upIDs.txt" )
+
+usearch = "usearch5.1.221_i86linux32"
+muscle = "muscle3.8.31_i86linux64" 
+
+
+oo.download( u_mtol400_prots, t_mtol400_prots_bz2 )
+oo.extract( t_mtol400_prots_bz2, t_mtol400_prots )
+
+oo.ext( [], [], usearch, deps = t_mtol400_prots, out_deps = t_mtol400_prots_sort, 
+        sort = t_mtol400_prots, output = t_mtol400_prots_sort ) 
+
+oo.ext( [], [], usearch, deps = t_mtol400_prots_sort, out_deps = t_mtol400_seeds, 
+        cluster = t_mtol400_prots_sort, seedsout = t_mtol400_seeds, id = 0.9 ) # counsout has a bug... 
+
+oo.ext( [], [], usearch, deps = t_mtol400_seeds, out_deps = t_mtol400_wdb, 
+        makewdb = t_mtol400_seeds, output = t_mtol400_wdb ) 
+
+for t,v in taxa.items():
+    oo.ext( [], [], usearch, deps = t_mtol400_wdb, out_deps = v['faaVSup'], 
+            wdb = t_mtol400_wdb, blast6out = v['faaVSup'], query = v['faa'],
+            evalue = 1e-40, verbose = True ) 
+    oo.f( v['faaVSup'], v['up'], screen_usearch_wdb )
+    oo.f( v['faa'], v['faa_map'], extract_o2g, t = t )
+oo.f( [v['up'] for v in taxa.values()], t_mtol400_nprots, merge_t2up_maps )
+
+for k,v in prots.items():
+    oo.pipe( t_mtol400_nprots, v['lin_list'], "grep", e = k )
+    oo.pipe( v['lin_list'], v['ver_list'], "tr", args = ['\\t','\\n'] )
+    oo.pipe( v['ver_list'], v['id_list'], "sed", args = ['1d'] )
+
+oo.ext( [ v['id_list'] for v in prots.values() ], all_prot_ids, "cat" )
+oo.pipe( g_all_faa, all_prot_faa, s_fna_select, deps = all_prot_ids, 
+         strategy = 'exact', s = all_prot_ids )
+
+for k,v in prots.items():
+    oo.pipe( all_prot_faa, v['faa'], s_fna_select, deps = v['id_list'], 
+             strategy = 'exact', s = v['id_list'] )
+    oo.ext( [], [], muscle, verbose = True, 
+            deps = v['faa'], out_deps = [v['aln'],v['aln_score']],
+            args = [("-in",v['faa']), ("-out",v['aln']), 
+                    ("-scorefile",v['aln_score']),("-maxiters","2"),
+                    "-quiet"] ) 
+    oo.pipe( v['aln'], v['sub_aln'], s_aln_subsample, deps = [v['aln_score']],
+             scores = v['aln_score'], n = v['aln_len'], unknown_fraction = 0.1 )
+oo.f( [ t_mtol400_nprots,o_orgs2prots] + [v['sub_aln'] for v in prots.values()], 
+        mtol400_aln, aln_merge ) 
+oo.pipe( mtol400_aln, mtol400_nwk, "FastTree", args = ["-gamma","-bionj"] )
+
+
+oo.ext( mtol400_nwk, mtol400_png, "circlader.py", outpipe = False ) 
+oo.pipe( l_microbial_taxonomy, t_arc_taxa1, "grep", e = "Archaea" ) 
+oo.pipe( t_arc_taxa1, t_arc_taxa, "cut", f = "2" ) 
+#oo.pipe( t_arc_taxa1, t_arc_taxa, "nwk_reroot.py" ) 
+
+
+oo.ext( [v['faa_map'] for v in taxa.values()], o_orgs2prots, "cat" )
+oo.f( [o_orgs2prots, t_mtol400_nprots], o_orgs2up, count_ups )
+oo.f( [img_tax_dump,o_orgs2up], [img_tax_dump1], img_add_mtol )
+oo.f( [ l_microbial_taxonomy, img_tax_dump1], 
+        t_mtol_annot, annotate_img_l )
+oo.ext( l_microbial_taxonomy, t_mtol_tree_annot, "circlader_annotate.py", annot = t_mtol_annot, deps = t_mtol_annot, outpipe = False )
+oo.ext( t_mtol_tree_annot, t_mtol_tree_png, "circlader.py", outpipe = False )
+
+
+Default( [ t_mtol400_seeds, t_mtol400_nprots, o_orgs2prots, 
+           img_tax_dump1, t_mtol_tree_png, 
+           mtol400_png, t_arc_taxa]  )
+
+
