@@ -123,13 +123,17 @@ class ooSfle:
     def fin( self, fn ):
         return str(self.lenv.File( sfle.d( self.fileDirInput, fn )) )
     
-    def fout( self, fn ):
+    def fout( self, fn, mult = None ):
+        if mult:
+            return [self.fout(fn.format(m)) for m in mult]
         return str(self.lenv.File( sfle.d( self.fileDirOutput, fn )))
-    
+
     def fsrc( self, fn ):
         return self.lenv.File( sfle.d( self.fileDirSrc, fn )).path
 
-    def ftmp( self, fn ):
+    def ftmp( self, fn, mult = None ):
+        if mult:
+            return [self.ftmp(fn.format(m)) for m in mult]
         return str(self.lenv.File( sfle.d( self.fileDirTmp, fn ) ))
 
     def f(  self, srs, tgt, func, srs_dep = None, tgt_dep = None, 
@@ -166,14 +170,18 @@ class ooSfle:
         return self.lenv.Command( ntgt + ntgt_dep, nsrs + nsrs_dep, _f_ )
 
 
-    def pipe( self, fr, to, excmd, deps = [], __kwargs_dict__ = None, **kwargs ):
+    def pipe( self, fr, to, excmd, deps = None, args = None,  __kwargs_dict__ = None, **kwargs ):
         import subprocess as sb
         def _extex_( io ):
             cmd = [str(excmd)]
             for k,v in kwargs.items():
                 cmd += ["-"+k if len(k) == 1 else "--"+k] + [str(v)] if v else []
+            if args:
+               for a in args:
+                   cmd += [a[0],a[1]] if type(a) in [list,tuple] else [a]
+            print " ".join( cmd )
             sb.call( cmd, stdout = io.out_open, stdin = io.inp_open )
-        self.f( fr, to, _extex_, deps = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
+        self.f( fr, to, _extex_, srs_dep = deps, fname = str(excmd), __kwargs_dict__ = kwargs )
 
     def ext( self, fr, to, excmd, outpipe = True, verbose = False, attempts = 1, deps = None, out_deps = None, __kwargs_dict__ = None, args = None, long_args = '--', **kwargs ):
         import subprocess as sb

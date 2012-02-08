@@ -4,6 +4,7 @@ import sys
 import collections
 import math
 from pandas import *
+from Bio import SeqIO
 
 
 def screen_usearch_wdb( io ):
@@ -100,6 +101,38 @@ def annotate_img_l( io ):
                 annots += ["\t".join( [str(k),'annotation_label',str(k).split('.')[-1][:5]+"." ])]
             annots += ["\t".join( [str(k),'annotation_color','#0000DD' ])]
     io.out_tab( annots )
+
+def aln_merge( io ):
+    up2p = dict([(l[0],set(l[1:])) for l in io.inp_tab()])
+    all_t = set()
+    for ns in up2p.values():
+        all_t |= ns
+    faas = []
+    t2p = dict([(l[0],set(l[1:])) for l in io.inp_tab()])
+    for f in io.inpf[2:]:
+        faas += list(SeqIO.parse(f, "fasta"))
+    faas = SeqIO.to_dict( faas )
+
+    aln = dict([(t,"") for t in t2p.keys()])
+
+    for up,pts in sorted(up2p.items(),key=lambda x:x[0]):
+        toadd, ll = [], -1
+        for k in sorted(aln.keys()):
+            ppp = list(pts & t2p[k])
+            if len(ppp) > 0:
+                if ll < 0:
+                    ll = len( faas[ppp[0]] )
+                aln[k] += faas[ppp[0]]
+            else:
+                toadd.append(k)
+        for k in toadd:
+            aln[k] += "".join( '-' * ll )
+    out_faas = []
+    for k,v in aln.items():
+        v.id = "t"+k
+        v.description = ""
+        out_faas.append(v)
+    SeqIO.write( out_faas, io.outf[0], "fasta")
 
 def count_ups( io ):
     ups = set()
