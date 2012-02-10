@@ -89,7 +89,7 @@ class IO:
                   comment = None,
                   strip = True, strip_chars = None,
                   split = True, tok = '\t' ):
-        data = self.inp_tab( comment, strip, strip_chars, split, tok )
+        data = self.inp_tab( comment = comment, strip = strip, strip_chars = strip_chars, split = split, tok = tok )
         return self.__inp_dict__( data, col_key, col_val, key_join, val_join, 
                                   comment, strip, strip_chars, split, tok )
 
@@ -212,30 +212,34 @@ class ooSfle:
                 return sb.call( cmd )
         return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
-    def ex( self, fr, to, excmd, inpipe = False, outpipe = False, args = None, long_args = '--', args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', **kwargs ):
+    def ex( self, fr, to, excmd, pipe = False, inpipe = False, outpipe = False, args = None, args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', **kwargs ):
         import subprocess as sb
-        srs_dep, tgt_dep, pargs, = [], [], []
-        for k,v in kwargs.items():
+        if pipe:
+            inpipe, outpipe = True, True
+        hash_in, hash_out = set(hash(f) for f in fr), set(hash(t) for t in to)
+        #srs_dep, tgt_dep, pargs, = [], [], []
+        pargs = []
+        args_items = [(a[0],a[1]) if type(a) in [list,tuple] else (a[0],"") 
+                        for a in args] if args else []
+        for k,v in kwargs.items() + args_items:
             arg_symb = short_arg_symb if len(k) == 1 else long_arg_symb
-            if type(v) in [list,tuple] and len(v) == 2:
-                if v[1] == 'dep_in':
-                    srs_dep.append(v[0])
-                elif v[1] == 'dep_out':
-                    tgt_dep.append(v[0])
-                v = v[0]
+            if type(v) is str:
+                if hash(v) in hash_in:
+                    fr.append(v)
+                    hash_in.remove(hash(v))
+                elif hash(v) in hash_out:
+                    to.append(v)
+                    hash_out.remove(hash(v))
             pargs += [arg_symb+k] + ([str(v)] if v or len(str(v)) > 0 else [])
-        if args:
-            for a in args:
-                pargs += [a[0],a[1]] if type(a) in [list,tuple] else [a]
 
         def _ex_( io ):
             cmd = [str(excmd)]
             if not args_after:
                 cmd += pargs
             if not inpipe:
-                cmd += io.inpf
+                cmd += [f for f in io.inpf if hash(f) in hash_in]
             if not outpipe:
-                cmd += io.outf
+                cmd += [f for f in io.outf if hash(f) in hash_out]
             if args_after:
                 cmd += pargs
             if verbose:
@@ -245,8 +249,8 @@ class ooSfle:
                             stdout = io.out_open if outpipe else None )
 
         return self.f( fr, to, _ex_, 
-                       srs_dep = srs_dep if srs_dep else None, 
-                       tgt_dep = tgt_dep if tgt_dep else None, 
+                       srs_dep = None, 
+                       tgt_dep = None, 
                        fname = str(excmd), 
                        __kwargs_dict__ = kwargs )
 
