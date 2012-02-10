@@ -212,6 +212,44 @@ class ooSfle:
                 return sb.call( cmd )
         return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
+    def ex( self, fr, to, excmd, inpipe = False, outpipe = False, args = None, long_args = '--', args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', **kwargs ):
+        import subprocess as sb
+        srs_dep, tgt_dep, pargs, = [], [], []
+        for k,v in kwargs.items():
+            arg_symb = short_arg_symb if len(k) == 1 else long_arg_symb
+            if type(v) in [list,tuple] and len(v) == 2:
+                if v[1] == 'dep_in':
+                    srs_dep.append(v[0])
+                elif v[1] == 'dep_out':
+                    tgt_dep.append(v[0])
+                v = v[0]
+            pargs += [arg_symb+k] + ([str(v)] if v or len(str(v)) > 0 else [])
+        if args:
+            for a in args:
+                pargs += [a[0],a[1]] if type(a) in [list,tuple] else [a]
+
+        def _ex_( io ):
+            cmd = [str(excmd)]
+            if not args_after:
+                cmd += pargs
+            if not inpipe:
+                cmd += io.inpf
+            if not outpipe:
+                cmd += io.outf
+            if args_after:
+                cmd += pargs
+            if verbose:
+                sys.stdout.write("oo scons ex: " + " ".join(cmd) + (' < '+ io.inpf[0] if inpipe and io.inpf else '')+ (' > '+ io.outf[0] if outpipe and io.outf else '') + "\n")
+            return sb.call( cmd, 
+                            stdin = io.inp_open if inpipe else None, 
+                            stdout = io.out_open if outpipe else None )
+
+        return self.f( fr, to, _ex_, 
+                       srs_dep = srs_dep if srs_dep else None, 
+                       tgt_dep = tgt_dep if tgt_dep else None, 
+                       fname = str(excmd), 
+                       __kwargs_dict__ = kwargs )
+
 
     def cat( self, srs, tgt, srs_dep = [], tgt_dep = [], **kwargs ):
         def _cat_( io ):
