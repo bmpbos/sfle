@@ -213,33 +213,38 @@ class ooSfle:
         return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
     def ex( self, fr, to, excmd, pipe = False, inpipe = False, outpipe = False, args = None, args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', **kwargs ):
+        if type(fr) not in [tuple,list]:
+            fr = [fr]
+        if type(to) not in [tuple,list]:
+            to = [to]
         import subprocess as sb
         if pipe:
             inpipe, outpipe = True, True
-        hash_in, hash_out = set(hash(f) for f in fr), set(hash(t) for t in to)
-        #srs_dep, tgt_dep, pargs, = [], [], []
         pargs = []
-        args_items = [(a[0],a[1]) if type(a) in [list,tuple] else (a[0],"") 
+        args_items = [(a[0],a[1]) if type(a) in [list,tuple] else (a,"") 
                         for a in args] if args else []
-        for k,v in kwargs.items() + args_items:
+        pot = set()
+        for k,v in kwargs.items():
             arg_symb = short_arg_symb if len(k) == 1 else long_arg_symb
             if type(v) is str:
-                if hash(v) in hash_in:
-                    fr.append(v)
-                    hash_in.remove(hash(v))
-                elif hash(v) in hash_out:
-                    to.append(v)
-                    hash_out.remove(hash(v))
+                pot.add( hash(v) )
             pargs += [arg_symb+k] + ([str(v)] if v or len(str(v)) > 0 else [])
+        for k,v in args_items:
+            if type(v) is str:
+                pot.add( hash(v) )
+            pargs += [k] + ([str(v)] if v or len(str(v)) > 0 else [])
+        cmdin = [(False if hash(f) in pot else True) for f in fr]
+        cmdout = [(False if hash(t) in pot else True) for t in to]
 
+        
         def _ex_( io ):
             cmd = [str(excmd)]
             if not args_after:
                 cmd += pargs
             if not inpipe:
-                cmd += [f for f in io.inpf if hash(f) in hash_in]
+                cmd += [f for ok,f in zip(cmdin,io.inpf) if ok]
             if not outpipe:
-                cmd += [f for f in io.outf if hash(f) in hash_out]
+                cmd += [f for ok,f in zip(cmdout,io.outf) if ok]
             if args_after:
                 cmd += pargs
             if verbose:
