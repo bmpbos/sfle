@@ -1,5 +1,6 @@
 import SCons as scons
 import SCons.Environment as e
+import subprocess as sb
 import os
 import sys
 import sfle
@@ -213,40 +214,55 @@ class ooSfle:
         return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
     def ex( self, fr, to, excmd, pipe = False, inpipe = False, outpipe = False, args = None, args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', **kwargs ):
-        if type(fr) not in [tuple,list]:
-            fr = [fr]
-        if type(to) not in [tuple,list]:
-            to = [to]
-        import subprocess as sb
-        if pipe:
-            inpipe, outpipe = True, True
+        if type(fr) not in [tuple,list]: fr = [fr]
+        if type(to) not in [tuple,list]: to = [to]
+        inpipe, outpipe = (True, True) if pipe else (inpipe, outpipe)
         pargs = []
         args_items = [(a[0],a[1]) if type(a) in [list,tuple] else (a,"") 
                         for a in args] if args else []
-        pot = set()
+        frhashes, tohashes = [hash(f) for f in fr], [hash(t) for t in to]
         for k,v in kwargs.items():
             arg_symb = short_arg_symb if len(k) == 1 else long_arg_symb
-            if type(v) is str:
-                pot.add( hash(v) )
-            pargs += [arg_symb+k] + ([str(v)] if v or len(str(v)) > 0 else [])
+            val = []
+            if v or len(str(v)) > 0:
+                hv = hash(v)
+                if hv in frhashes:
+                    val = [("in",frhashes.index(hv))]
+                elif hv in tohashes:
+                    val = [("out",tohashes.index(hv))]
+                else:
+                    val = [str(v)]
+            pargs += [arg_symb+k] + val
         for k,v in args_items:
-            if type(v) is str:
-                pot.add( hash(v) )
-            pargs += [k] + ([str(v)] if v or len(str(v)) > 0 else [])
-        cmdin = [(False if hash(f) in pot else True) for f in fr]
-        cmdout = [(False if hash(t) in pot else True) for t in to]
-
+            val = []
+            if v or len(str(v)) > 0:
+                hv = hash(v)
+                if hv in frhashes:
+                    val = [("in",frhashes.index(hv))]
+                elif hv in tohashes:
+                    val = [("out",tohashes.index(hv))]
+                else:
+                    val = [str(v)]
+            pargs += [k] + val 
         
         def _ex_( io ):
             cmd = [str(excmd)]
+            pa, noin, noout = [], set(), set()
+            for p in pargs:
+                if type(p) is str: pa.append(p)
+                else:
+                    k,isin = p[1], p[0] == 'in'
+                    pa.append( io.inpf[k] if isin else io.outf[k] )
+                    if isin: noin.add(k)
+                    else: noout.add(k)
             if not args_after:
-                cmd += pargs
+                cmd += pa
             if not inpipe:
-                cmd += [f for ok,f in zip(cmdin,io.inpf) if ok]
+                cmd += [f for i,f in enumerate(io.inpf) if not i in noin]
             if not outpipe:
-                cmd += [f for ok,f in zip(cmdout,io.outf) if ok]
+                cmd += [f for i,f in enumerate(io.outf) if not i in noout]
             if args_after:
-                cmd += pargs
+                cmd += pa
             if verbose:
                 sys.stdout.write("oo scons ex: " + " ".join(cmd) + (' < '+ io.inpf[0] if inpipe and io.inpf else '')+ (' > '+ io.outf[0] if outpipe and io.outf else '') + "\n")
             return sb.call( cmd, 
