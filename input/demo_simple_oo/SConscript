@@ -149,7 +149,22 @@ oo.f( [file_in1,file_in2], file_out5, cut_local_functin, f = '1,3' )
 oo.ext( [file_in1,file_in2], file_out6, cut_unix_prog, f = '1,3' )
 oo.cut( [file_in1,file_in2], file_out7, f = '1,3' ) 
 
+
+pipe_out  = oo.fout( "pout.txt" )
+
+c1 = oo.chain( "curl", url = "http://www.huttenhower.org/webfm_send/73" )
+oo.chain( "grep", e = "Bifidobacterium",in_pipe = c1 )
+oo.chain( "cut", f = 1, complement = ""  ,in_pipe = c1 )
+oo.chain( "sed", e = "s/\t/+/g"  ,in_pipe = c1 )
+oo.chain( "bc", in_pipe = c1, stop = pipe_out )
+
+
+
 Default( [ file_out1, file_out2, file_out3, file_out4, file_out5, file_out6,
-           file_out7 ] ) 
+           file_out7, pipe_out ] ) 
+
+
+
+
 
 

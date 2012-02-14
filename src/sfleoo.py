@@ -275,6 +275,53 @@ class ooSfle:
                        fname = str(excmd), 
                        __kwargs_dict__ = kwargs )
 
+    def chain( self, excmd, start = None, stop = None, in_pipe = None, short_arg_symb = '-', long_arg_symb = '--', args = None, **kwargs ):
+        if not hasattr( self, "pipelines" ):
+            self.pipelines = {}
+            self.pipeline_counter = 1000
+        """        
+        if in_pipe is None and start is None:
+            sys.stderr.write("Error: don't know how to start the pipeline")
+            return
+        """
+        
+        if in_pipe is None:
+            self.pipeline_counter += 1
+            self.pipelines[self.pipeline_counter] = []
+            cur_pipe = self.pipelines[self.pipeline_counter]
+            cur_pipe_id = self.pipeline_counter
+        else:
+            cur_pipe = self.pipelines[in_pipe]
+            cur_pipe_id = in_pipe
+        
+        args_items = [(a[0],a[1]) if type(a) in [list,tuple] else (a,"") 
+                        for a in args] if args else []
+        cmd = [excmd]
+        for k,v in kwargs.items():
+            arg_symb = short_arg_symb if len(k) == 1 else long_arg_symb
+            val = []
+            cmd += [arg_symb+k] + ([str(v)] if v or len(str(v)) > 0 else [])
+        for k,v in args_items:
+            cdm += [k] + ([str(v)] if v or len(str(v)) > 0 else []) 
+
+        cur_pipe.append((cmd,start,stop))
+
+        if stop is None:
+            return cur_pipe_id
+
+        def _chain_( io ):
+            p_prec = sb.Popen(cur_pipe[0][0], stdout=sb.PIPE, stdin = io.inp_open )
+            for p,start,stop in cur_pipe[1:-1]:
+                p_prec = sb.Popen(p, stdin=p_prec.stdout, stdout=sb.PIPE)
+            p = sb.Popen(cur_pipe[-1][0], stdin=p_prec.stdout, stdout=io.out_open )
+            ret = p.communicate()
+            #return ret
+
+        return self.f( cur_pipe[0][1], cur_pipe[-1][2], _chain_,
+                       srs_dep = None, tgt_dep = None,
+                       fname = str("pipe_name_TBA"),
+                       __kwargs_dict__ = None )
+
 
     def cat( self, srs, tgt, srs_dep = [], tgt_dep = [], **kwargs ):
         def _cat_( io ):
