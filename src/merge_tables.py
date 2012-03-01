@@ -180,7 +180,7 @@ def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, ostm ):
 		iHeader = 0
 		for iIn in range( len( aaastrIn ) ):
 			for i in range( len( aastrHeaders[iIn] ) ):
-				astrHeaders[iHeader] = ": ".join( (re.sub( r'\.\S+$', "", os.path.basename( astrLabels[iIn] ) ),
+				astrHeaders[iHeader] = ": ".join( (re.sub( r'\.[^.]+$', "", os.path.basename( astrLabels[iIn] ) ),
 					astrHeaders[iHeader]) )
 				iHeader += 1
 

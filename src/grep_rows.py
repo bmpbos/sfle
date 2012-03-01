@@ -48,7 +48,7 @@ import argparse
 import csv
 import sys
 
-def grep_rows( aastrRows, aastrData, ostm, fInvert, iCol ):
+def grep_rows( aastrRows, aastrData, ostm, fInvert, iCol, fBeginning ):
 	"""
 	Outputs any rows whose value in the requested column is (or isn't) included in the given ID set. 
 	
@@ -62,24 +62,35 @@ def grep_rows( aastrRows, aastrData, ostm, fInvert, iCol ):
 	:type	fInvert:	bool
 	:param	iCol:		Data column in which IDs are matched (zero-indexed).
 	:type	iCol:		int
+	:param	fBeginning:	If true, match beginning rather than full ID.
+	:type	fBeginning:	bool
 	
 	>>> aastrRows = [[s] for s in "ecca"]
 	>>> aastrData = [list(s) for s in ("a1a", "a3b", "b5c", "c7d", "d9e", "d1f", "e3g")]
-	>>> grep_rows( aastrRows, aastrData, sys.stdout, False, 0 ) #doctest: +NORMALIZE_WHITESPACE
+	>>> grep_rows( aastrRows, aastrData, sys.stdout, False, 0, False ) #doctest: +NORMALIZE_WHITESPACE
 	a	1	a
 	a	3	b
 	c	7	d
 	e	3	g
 
-	>>> grep_rows( aastrRows, aastrData, sys.stdout, True, 0 ) #doctest: +NORMALIZE_WHITESPACE
+	>>> grep_rows( aastrRows, aastrData, sys.stdout, True, 0, False ) #doctest: +NORMALIZE_WHITESPACE
 	b	5	c
 	d	9	e
 	d	1	f
 
-	>>> grep_rows( aastrRows, aastrData, sys.stdout, False, 2 ) #doctest: +NORMALIZE_WHITESPACE
+	>>> grep_rows( aastrRows, aastrData, sys.stdout, False, 2, False ) #doctest: +NORMALIZE_WHITESPACE
 	a	1	a
 	b	5	c
 	d	9	e
+
+	>>> aastrRows = [["a"]]
+	>>> aastrData = [s.split( " " ) for s in ("a 1", "ab 2", "b 3", "ba 4")]
+	>>> grep_rows( aastrRows, aastrData, sys.stdout, False, 0, False ) #doctest: +NORMALIZE_WHITESPACE
+	a	1
+
+	>>> grep_rows( aastrRows, aastrData, sys.stdout, False, 0, True ) #doctest: +NORMALIZE_WHITESPACE
+	a	1
+	ab	2
 	"""
 
 	setstrRows = set()
@@ -89,8 +100,18 @@ def grep_rows( aastrRows, aastrData, ostm, fInvert, iCol ):
 	
 	csvw = csv.writer( ostm, csv.excel_tab )
 	for astrLine in aastrData:
+		if not astrLine:
+			continue
 		# Only handle non-blank lines in which the requested column's contents are in (or invertedly out) of our IDs
-		if astrLine and ( ( astrLine[iCol] in setstrRows ) != fInvert ):
+		if fBeginning:
+			fMatch = False
+			for strRow in setstrRows:
+				if astrLine[iCol].startswith( strRow ):
+					fMatch = True
+					break
+		else:
+			fMatch = astrLine[iCol] in setstrRows
+		if fMatch != fInvert:
 			csvw.writerow( astrLine )
 
 argp = argparse.ArgumentParser( prog = "grep_rows.py",
@@ -100,6 +121,8 @@ argp.add_argument( "-f",		dest = "fInvert",	action = "store_true",
 argp.add_argument( "-c",		dest = "iCol",		metavar = "col",
 	type = int,		default = 0,
 	help = "Data column in which IDs are matched (zero-indexed)" )
+argp.add_argument( "-b",		dest = "fBeginning",	action = "store_true",
+	help = "Match beginning rather than full ID" )
 argp.add_argument( "istmRows",	metavar = "rows.txt",
 	type = file,
 	help = "File from which row IDs to match are read" )
@@ -108,7 +131,7 @@ __doc__ = "::\n\n\t" + argp.format_help( ).replace( "\n", "\n\t" ) + __doc__
 def _main( ):
 	args = argp.parse_args( )
 	grep_rows( csv.reader( args.istmRows, csv.excel_tab ), csv.reader( sys.stdin, csv.excel_tab ),
-		sys.stdout, args.fInvert, args.iCol )
+		sys.stdout, args.fInvert, args.iCol, args.fBeginning )
 	
 if __name__ == "__main__":
 	_main( )

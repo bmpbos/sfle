@@ -10,6 +10,7 @@ import collections
 import csv
 import ftplib
 import glob
+import inspect
 import logging
 import os
 import re
@@ -24,6 +25,7 @@ c_strDirEtc				= "etc/"
 c_strDirSrc				= "src/"
 c_strDirTmp				= "tmp/"
 
+c_strSufGZ				= ".gz"
 c_strSufHTML			= ".html"
 c_strSufPCL				= ".pcl"
 c_strSufPDF				= ".pdf"
@@ -175,7 +177,14 @@ def rebase( pPath, strFrom = None, strTo = "" ):
 
 def iscollection( pValue ):
 	
-	return isinstance( pValue, collections.Iterable )
+	return ( ( type(pValue) != str ) and isinstance( pValue, collections.Iterable ) )
+
+def current_file( ):
+	
+	frme = inspect.currentframe( )
+	if frme:
+		frme = frme.f_back
+	return ( frme and os.path.abspath( inspect.getfile( frme ) ) )
 
 #===============================================================================
 # SCons utilities
@@ -541,10 +550,10 @@ def scanner( fileExclude = None, fileInclude = None ):
 
 class CCommand:
 	
-	def __init__( self, strCommand, astrArgs = [], fPipe = True, fStatic = False ):
+	def __init__( self, strCommand, aaArgs = [], fPipe = True, fStatic = False ):
 		
 		self.m_strCommand = strCommand
-		self.m_astrArgs = astrArgs
+		self.m_aaArgs = aaArgs or []
 		self.m_fPipe = fPipe
 		self.m_fStatic = fStatic
 
@@ -552,9 +561,9 @@ class CCommand:
 		
 		if self.m_fPipe:
 			funcPipe = spipe if self.m_fStatic else pipe
-			return funcPipe( pE, fileIn, self.m_strCommand, fileOut )
+			return funcPipe( pE, fileIn, self.m_strCommand, fileOut, self.m_aaArgs )
 		funcCmd = scmd if self.m_fStatic else cmd
-		return funcCmd( pE, self.m_strCommand, fileOut, [[True, fileIn]] + self.m_astrArgs )
+		return funcCmd( pE, self.m_strCommand, fileOut, [[True, fileIn]] + self.m_aaArgs )
 
 class CTarget:
 	
@@ -643,7 +652,7 @@ class CProcessor:
 			afileIn = afileOut
 		return afileIn
 
-	def __init__( self, strID, pFrom, pCommand, pTo ):
+	def __init__( self, strID, pFrom, pCommand, pTo = None ):
 
 		self.m_strID = strID
 		self.m_pFrom = pFrom or CTarget( )
@@ -652,7 +661,7 @@ class CProcessor:
 
 	def in2out( self, fileIn ):
 		
-		return self.m_pFrom.in2out( fileIn, self.m_pTo )
+		return self.m_pFrom.in2out( fileIn, self.m_pTo, self.m_strID )
 
 	"""
 	def out2in( self, strOut ):
