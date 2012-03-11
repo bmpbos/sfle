@@ -2,6 +2,7 @@ import sfle
 import sys
 
 Import( "*" )
+pE = DefaultEnvironment( )
 
 """
 Header
@@ -12,13 +13,11 @@ Constant and file definitions.
 
 c_strPreTest			= "test_"
 
-c_fileInputDataPCL		= File( sfle.d( fileDirInput, "data.pcl.gz" ) )
+c_fileInputDataPCL		= sfle.d( pE, fileDirInput, "data.pcl.gz" )
 
-c_fileProgData2RData	= File( sfle.d( sfle.c_strDirSrc, "data2rdata.R" ) )
-c_fileProgRData2Figure	= File( sfle.d( sfle.c_strDirSrc, "rdata2figure.R" ) )
+c_fileProgData2RData	= sfle.d( pE, sfle.c_strDirSrc, "data2rdata.R" )
+c_fileProgRData2Figure	= sfle.d( pE, sfle.c_strDirSrc, "rdata2figure.R" )
 c_afileProgs			= [c_fileProgData2RData, c_fileProgRData2Figure]
-
-pE = DefaultEnvironment( )
 
 """
 Processing module 1
@@ -43,16 +42,11 @@ of the intermediate TSV as an RData file, and a second that plots
 the RData as the final output PDF (or PNG).
 """
 
-def funcR( target, source, env ):
-	strT, astrSs = sfle.ts( target, source )
-	strProg, strIn = astrSs[:2]
-	return sfle.ex( (strProg, strT, strIn) )
-
 fileRData = File( str(fileTSV).replace( sfle.c_strSufTSV, sfle.c_strSufRData ) )
-Command( fileRData, [c_fileProgData2RData, fileTSV], funcR )
+sfle.op( pE, c_fileProgData2RData, [[True, fileRData], [False, fileTSV]] )
 
-filePDF = File( sfle.d( fileDirOutput, sfle.rebase( fileRData, sfle.c_strSufRData, sfle.c_strSufPDF ) ) )
-Command( filePDF, [c_fileProgRData2Figure, fileRData], funcR )
+filePDF = sfle.d( pE, fileDirOutput, sfle.rebase( fileRData, sfle.c_strSufRData, sfle.c_strSufPDF ) )
+sfle.op( pE, c_fileProgRData2Figure, [[True, filePDF], [False, fileRData]] )
 Default( filePDF )
 
 """
@@ -64,7 +58,7 @@ the inlinedocs library.
 """
 
 for fileProg in c_afileProgs:
-	filePDF = File( sfle.d( fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufPDF ) ) )
+	filePDF = sfle.d( pE, fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufPDF ) )
 	sfle.inlinedocs( pE, fileProg, filePDF, fileDirTmp )
 	Default( filePDF )
 
@@ -77,8 +71,8 @@ Test each R script using the testthat library.
 
 for fileProg in c_afileProgs:
 # StartTestthat
-	fileTXT = File( sfle.d( fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufTXT ) ) )
-	fileDir = Dir( sfle.d( fileDirSrc, c_strPreTest + sfle.rebase( fileProg, sfle.c_strSufR ) ) )
+	fileTXT = sfle.d( pE, fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufTXT ) )
+	fileDir = sfle.d( pE, fileDirSrc, c_strPreTest + sfle.rebase( fileProg, sfle.c_strSufR ) )
 	sfle.testthat( pE, fileProg, fileDir, fileTXT )
 	Default( fileTXT )
 # EndTestthat

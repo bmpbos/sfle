@@ -41,8 +41,8 @@ The `demo_simple SConscript`_ file includes all major elements of a `SflE`_ proj
 setup blocks defining constant values, inputs, outputs, and scripts, as well as
 several demonstration processing modules.
 
-Imports
-~~~~~~~
+Imports and the Environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Every `SflE`_ project ``SConscript`` should begin with standard `Python`_ ``imports``,
 including ``sfle`` itself, and an `SCons`_ ``Import`` statement:
@@ -54,6 +54,13 @@ including ``sfle`` itself, and an `SCons`_ ``Import`` statement:
 The ``Import( "*" )`` reads in all of the variables set up for the project by the
 `SflE`_ infrastructure, including its input, output, and temporary directories and
 the variety of default processors provided in the `SflE`_ distribution.
+
+Finally, `SCons` provides a variety of local variables and methods to normal
+``SConstruct`` and ``SConscript`` files that `SflE`_ is not, as a standard `Python`_
+module, able to access natively.  Instead, all `SflE`_ methods that interact with
+`SCons`_ rules must be passed an `Environment <http://www.scons.org/doc/production/HTML/scons-user/c1385.html>`_
+object.  By default this should, unsurprisingly, be the ``DefaultEnvironment``, which we
+store for convenience in a local variable.
 
 Constants
 ~~~~~~~~~
@@ -105,20 +112,6 @@ with which to build processing modules.
 .. literalinclude:: ../../demo_simple/SConscript
 	:start-after:	StartPrograms
 	:end-before:	EndPrograms
-
-SCons Environment
-~~~~~~~~~~~~~~~~~
-
-`SCons` provides a variety of local variables and methods to normal ``SConstruct`` and
-``SConscript`` files that `SflE`_ is, as a standard `Python`_ module, not able to access
-natively.  Instead, all `SflE`_ methods that interact with `SCons`_ rules must be passed
-an `Environment <http://www.scons.org/doc/production/HTML/scons-user/c1385.html>`_
-object.  By default this should, unsurprisingly, be the ``DefaultEnvironment``, which we
-store for convenience in a local variable.
-	
-.. literalinclude:: ../../demo_simple/SConscript
-	:start-after:	StartEnvironment
-	:end-before:	EndEnvironment
 	
 Module 1: Normalization
 ~~~~~~~~~~~~~~~~~~~~~~~

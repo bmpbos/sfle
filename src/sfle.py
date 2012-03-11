@@ -8,6 +8,7 @@
 
 import collections
 import csv
+import fnmatch
 import ftplib
 import glob
 import inspect
@@ -122,11 +123,12 @@ def lc( strFile ):
 def d( *aArgs ):
 	"""
 	Convenience function for joining two or more components of a path with /s.  Will
-	automatically convert objects into strings before joining.
+	automatically convert objects into strings before joining.  If any argument is an
+	SCons environment, the return value will be a File or Dir object as appropriate.
 	
 	:param	aArgs:	Two or more items to be joined.
 	:type	aArgs:	collection
-	:returns:		string -- inputs joined by / characters
+	:returns:		string or File/Dir -- inputs joined by / characters
 	
 	>>> d( "a", "b", "c" )
 	'a/b/c'
@@ -137,8 +139,31 @@ def d( *aArgs ):
 	>>> d( "r", 2, "d", 2 )
 	'r/2/d/2'
 	"""
+
+	astrArgs = []
+	pE = None
+	for pArg in aArgs:
+		if ( "File" in dir( pArg ) ) and ( str(type( pArg )).find( "Node" ) < 0 ):
+			pE = pArg
+		else:
+			astrArgs.append( str(pArg) )
+	strRet = apply( os.path.join, [str(p) for p in astrArgs] )
+	if not pE:
+		return strRet
+	try:
+		return pE.File( strRet )
+	except TypeError:
+		return pE.Dir( strRet )
+
+def find( pPath, pFile, pE = None ):
 	
-	return "/".join( str(p) for p in aArgs )
+	strTarget = str(pFile)
+	for strPath, strDir, astrFiles in os.walk( str(pPath) ):
+		for strFile in astrFiles:
+			if fnmatch.fnmatch( strFile, strTarget ):
+				return ( d( pE, strPath, strFile ) if pE else d( strPath, strFile ) )
+	
+	return None
 
 def rebase( pPath, strFrom = None, strTo = "" ):
 	"""
@@ -174,6 +199,10 @@ def rebase( pPath, strFrom = None, strTo = "" ):
 	elif strTo:
 		strRet += strTo
 	return strRet
+
+def redir( pPath ):
+	
+	return os.path.dirname( str(pPath) )
 
 def iscollection( pValue ):
 	
@@ -212,7 +241,11 @@ def ex( pCmd, strOut = None ):
 
 def ts( afileTargets, afileSources ):
 
-	return (str(afileTargets[0]), [fileCur.get_abspath( ) for fileCur in afileSources])
+	return (afileTargets[0].get_abspath( ), [f.get_abspath( ) for f in afileSources])
+
+def tss( afileTargets, afileSources ):
+
+	return ([f.get_abspath( ) for f in a] for a in (afileTargets, afileSources))
 
 def override( pE, pFile ):
 
@@ -270,40 +303,58 @@ def cat( strFrom ):
 	
 	return " ".join( (( "gunzip -c" if re.search( r'\.gz$', strFrom ) else "cat" ), quote( strFrom )) )
 
-def _pipeargs( strFrom, strTo, aaArgs ):
+def _pipeargs( strFrom, strTo, aArgs ):
 
-	astrFiles = []
-	astrArgs = []
-	for aArg in aaArgs:
-		fFile, strArg = aArg[0], aArg[1]
-		if fFile:
-			strArg = _pipefile( strArg )
-			astrFiles.append( strArg )
-		astrArgs.append( quote( strArg ) )
-	return ( [_pipefile( s ) for s in (strFrom, strTo)] + [astrFiles, astrArgs] )
+	astrIns, astrOuts, astrArgs = ([] for i in range( 3 ))
+	if strFrom:
+		astrIns.append( strFrom )
+	if strTo:
+		astrOuts.append( strTo )
+	for pArg in aArgs:
+		if iscollection( pArg ):
+			fOut, pArg = pArg[0], _pipefile( pArg[1] )
+			( astrOuts if fOut else astrIns ).append( pArg )
+		astrArgs.append( quote( pArg ) )
+	return ( [_pipefile( s ) for s in (strFrom, strTo)] + [astrIns, astrOuts, astrArgs] )
 
-def pipe( pE, strFrom, strProg, strTo, aaArgs = [] ):
-	strFrom, strTo, astrFiles, astrArgs = _pipeargs( strFrom, strTo, aaArgs )
-	def funcPipe( target, source, env, strFrom = strFrom, astrArgs = astrArgs ):
-		strT, astrSs = ts( target, source )
-		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [astrSs[0]] + astrArgs, strT )
-	return pE.Command( strTo, [strProg] + ( [strFrom] if strFrom else [] ) +
-		astrFiles, funcPipe )
+def pipe( pE, strFrom, strProg, strTo, aArgs = [] ):
+	
+	strFrom, strTo, astrIns, astrOuts, astrArgs = _pipeargs( strFrom, strTo, aArgs )
+	def funcPipe( target, source, env, strTo = strTo, strFrom = strFrom, astrArgs = astrArgs ):
+		astrTs, astrSs = tss( target, source )
+		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [astrSs[0]] + astrArgs, strTo )
+	return pE.Command( astrOuts, [strProg] + astrIns, funcPipe )
 
-def cmd( pE, strProg, strTo, aaArgs = [] ):
+def cmd( pE, strProg, strTo, aArgs = [] ):
 
-	return pipe( pE, None, strProg, strTo, aaArgs )
+	return pipe( pE, None, strProg, strTo, aArgs )
 
-def spipe( pE, strFrom, strCmd, strTo, aaArgs = [] ):
-	strFrom, strTo, astrFiles, astrArgs = _pipeargs( strFrom, strTo, aaArgs )
-	def funcPipe( target, source, env, strCmd = strCmd, strFrom = strFrom, astrArgs = astrArgs ):
-		strT, astrSs = ts( target, source )
-		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [strCmd] + astrArgs, strT )
-	return pE.Command( strTo, ( [strFrom] if strFrom else [] ) + astrFiles, funcPipe )
+def sink( pE, strFrom, strProg, aArgs = [] ):
 
-def scmd( pE, strCmd, strTo, aaArgs = [] ):
+	return pipe( pE, strFrom, strProg, None, aArgs )
 
-	return spipe( pE, None, strCmd, strTo, aaArgs )
+def op( pE, strProg, aArgs = [] ):
+
+	return pipe( pE, None, strProg, None, aArgs )
+
+def spipe( pE, strFrom, strCmd, strTo, aArgs = [] ):
+	
+	strFrom, strTo, astrIns, astrOuts, astrArgs = _pipeargs( strFrom, strTo, aArgs )
+	def funcPipe( target, source, env, strCmd = strCmd, strTo = strTo, strFrom = strFrom, astrArgs = astrArgs ):
+		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [strCmd] + astrArgs, strTo )
+	return pE.Command( astrOuts, astrIns, funcPipe )
+
+def scmd( pE, strCmd, strTo, aArgs = [] ):
+
+	return spipe( pE, None, strCmd, strTo, aArgs )
+
+def ssink( pE, strFrom, strCmd, aArgs = [] ):
+
+	return spipe( pE, strFrom, strCmd, None, aArgs )
+
+def sop( pE, strCmd, aArgs = [] ):
+
+	return spipe( pE, None, strCmd, None, aArgs )
 
 #===============================================================================
 # Sphinx reporting utilities
@@ -326,10 +377,10 @@ def _sphinx_conf( pE, strConfPY ):
 		return None
 	return pE.Command( strConfPY, None, funcConfPY )
 
-def sphinx( pE, strFrom, strProg, strTo, aaArgs = [] ):
+def sphinx( pE, strFrom, strProg, strTo, aArgs = [] ):
 	
 	strRST = str(strTo).replace( c_strSufHTML, c_strSufRST )
-	pipe( pE, strFrom, strProg, strRST, aaArgs )
+	pipe( pE, strFrom, strProg, strRST, aArgs )
 	strConfPY = d( os.path.dirname( strRST ), "conf.py" )
 	_sphinx_conf( pE, strConfPY )
 	return pE.Command( strTo, [strRST, strConfPY], _sphinx( ) )
@@ -415,7 +466,7 @@ def doctest( pE, afileProgs, fileOut ):
 	
 	if not iscollection( afileProgs ):
 		afileProgs = (afileProgs,)
-	return scmd( pE, "python -m doctest -v", fileOut, [[True, f] for f in afileProgs] )
+	return scmd( pE, "python -m doctest -v", fileOut, [[False, f] for f in afileProgs] )
 
 def testthat( pE, fileProg, fileDir, fileOut ):
 	"""
@@ -550,10 +601,10 @@ def scanner( fileExclude = None, fileInclude = None ):
 
 class CCommand:
 	
-	def __init__( self, strCommand, aaArgs = [], fPipe = True, fStatic = False ):
+	def __init__( self, strCommand, aArgs = [], fPipe = True, fStatic = False ):
 		
 		self.m_strCommand = strCommand
-		self.m_aaArgs = aaArgs or []
+		self.m_aArgs = aArgs or []
 		self.m_fPipe = fPipe
 		self.m_fStatic = fStatic
 
@@ -561,9 +612,9 @@ class CCommand:
 		
 		if self.m_fPipe:
 			funcPipe = spipe if self.m_fStatic else pipe
-			return funcPipe( pE, fileIn, self.m_strCommand, fileOut, self.m_aaArgs )
+			return funcPipe( pE, fileIn, self.m_strCommand, fileOut, self.m_aArgs )
 		funcCmd = scmd if self.m_fStatic else cmd
-		return funcCmd( pE, self.m_strCommand, fileOut, [[True, fileIn]] + self.m_aaArgs )
+		return funcCmd( pE, self.m_strCommand, fileOut, [[False, fileIn]] + self.m_aArgs )
 
 class CTarget:
 	
