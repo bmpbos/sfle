@@ -195,8 +195,11 @@ def rebase( pPath, strFrom = None, strTo = "" ):
 	
 	strRet = os.path.basename( str(pPath) )
 	if strFrom:
-		strRet = strRet.replace( strFrom, strTo )
-	elif strTo:
+		if strFrom == True:
+			strRet = re.sub( r'\.[^.]*$', "", strRet )
+		else:
+			strRet = strRet.replace( strFrom, "" )
+	if strTo:
 		strRet += strTo
 	return strRet
 
