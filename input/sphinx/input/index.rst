@@ -26,6 +26,14 @@ started is to look at some of the example analyses provided with `SflE`_ itself.
 Feel free to :doc:`dive in <demos>`, or read on below for an overview of
 :ref:`getting started <getting_started>` and `SflE`_'s workflow philosophy.
 
+If you use this environment, the included scripts, or any related code in your work, 
+please let us know, sign up for the `SflE users group`_
+(`sfle-users@googlegroups.com`_), pass along any issues or feedback.
+
+.. _`SflE users group`: http://groups.google.com/d/forum/sfle-users
+.. _sfle-users@googlegroups.com: mailto:sfle-users@googlegroups.com
+
+
 Contents
 ========
 
