@@ -1,0 +1,78 @@
+import sfle
+import sys
+
+Import( "*" )
+pE = DefaultEnvironment( )
+
+"""
+Header
+======
+
+Constant and file definitions.
+"""
+
+c_strPreTest			= "test_"
+
+c_fileInputDataPCL		= sfle.d( pE, fileDirInput, "data.pcl.gz" )
+
+c_fileProgData2RData	= sfle.d( pE, sfle.c_strDirSrc, "data2rdata.R" )
+c_fileProgRData2Figure	= sfle.d( pE, sfle.c_strDirSrc, "rdata2figure.R" )
+c_afileProgs			= [c_fileProgData2RData, c_fileProgRData2Figure]
+
+"""
+Processing module 1
+===================
+
+Generate an intermediate transposed TSV file from the input data,
+decompressing, resuffixing, and changing directory automatically.
+"""
+
+pProc = sfle.CProcessor( "trn",
+	None,
+	sfle.CCommand( c_fileProgTranspose ),
+	sfle.CTarget( sfle.c_strSufTSV, fileDirTmp ) )
+fileTSV = sfle.CProcessor.pipeline( pE, pProc, c_fileInputDataPCL )[0]
+
+"""
+Processing modules 2-3
+======================
+
+Call two R scripts, one that precalculates and caches the contents
+of the intermediate TSV as an RData file, and a second that plots
+the RData as the final output PDF (or PNG).
+"""
+
+fileRData = File( str(fileTSV).replace( sfle.c_strSufTSV, sfle.c_strSufRData ) )
+sfle.op( pE, c_fileProgData2RData, [[True, fileRData], [False, fileTSV]] )
+
+filePDF = sfle.d( pE, fileDirOutput, sfle.rebase( fileRData, sfle.c_strSufRData, sfle.c_strSufPDF ) )
+sfle.op( pE, c_fileProgRData2Figure, [[True, filePDF], [False, fileRData]] )
+Default( filePDF )
+
+"""
+Processing module 4
+===================
+
+Document each R script as a standard Rd PDF using a wrapper for
+the inlinedocs library.
+"""
+
+for fileProg in c_afileProgs:
+	filePDF = sfle.d( pE, fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufPDF ) )
+	sfle.inlinedocs( pE, fileProg, filePDF, fileDirTmp )
+	Default( filePDF )
+
+"""
+Processing module 5
+===================
+
+Test each R script using the testthat library.
+"""
+
+for fileProg in c_afileProgs:
+# StartTestthat
+	fileTXT = sfle.d( pE, fileDirOutput, sfle.rebase( fileProg, sfle.c_strSufR, sfle.c_strSufTXT ) )
+	fileDir = sfle.d( pE, fileDirSrc, c_strPreTest + sfle.rebase( fileProg, sfle.c_strSufR ) )
+	sfle.testthat( pE, fileProg, fileDir, fileTXT )
+	Default( fileTXT )
+# EndTestthat
