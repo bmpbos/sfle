@@ -1,3 +1,20 @@
+#######################################################################################
+# This file is provided under the Creative Commons Attribution 3.0 license.
+#
+# You are free to share, copy, distribute, transmit, or adapt this work
+# PROVIDED THAT you attribute the work to the authors listed below.
+# For more information, please see the following web page:
+# http://creativecommons.org/licenses/by/3.0/
+#
+# This file is a component of the SflE Scientific workFLow Environment for reproducible 
+# research, authored by the Huttenhower lab at the Harvard School of Public Health
+# (contact Curtis Huttenhower, chuttenh@hsph.harvard.edu).
+#
+# If you use this environment, the included scripts, or any related code in your work,
+# please let us know, sign up for the SflE user's group (sfle-users@googlegroups.com),
+# pass along any issues or feedback, and we'll let you know as soon as a formal citation
+# is available.
+#######################################################################################
 import SCons as scons
 import SCons.Environment as e
 import subprocess as sb
@@ -5,6 +22,7 @@ import os
 import sys
 import sfle
 import time
+import numpy as np
 
 class IO:
 
@@ -121,9 +139,15 @@ class ooSfle:
     def rebase( self, pPath, strFrom = None, strTo = "" ):
         return sfle.rebase( pPath, strFrom, strTo )
 
+    def glob( self, fn ):
+        return [self.fin(a) for a in self.lenv.Glob( sfle.d( self.fileDirInput, fn ) )]
+
     def fin( self, fn ):
-        return str(self.lenv.File( sfle.d( self.fileDirInput, fn )) )
-    
+        if isinstance(fn,str):
+            return str(self.lenv.File( sfle.d( self.fileDirInput, fn )) )
+        else:
+            return str(self.lenv.File( fn ))
+
     def fout( self, fn, mult = None ):
         if mult:
             return [self.fout(fn.format(m)) for m in mult]
@@ -213,7 +237,7 @@ class ooSfle:
                 return sb.call( cmd )
         return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
-    def ex( self, fr, to, excmd, pipe = False, inpipe = False, outpipe = False, args = None, args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', **kwargs ):
+    def ex( self, fr, to, excmd, srs_dep = None, tgt_dep = None, pipe = False, inpipe = False, outpipe = False, args = None, args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', __kwargs__ = None, **kwargs ):
         if type(fr) not in [tuple,list]: fr = [fr]
         if type(to) not in [tuple,list]: to = [to]
         inpipe, outpipe = (True, True) if pipe else (inpipe, outpipe)
@@ -221,6 +245,10 @@ class ooSfle:
         args_items = [(a[0],a[1]) if type(a) in [list,tuple] else (a,"") 
                         for a in args] if args else []
         frhashes, tohashes = [hash(f) for f in fr], [hash(t) for t in to]
+        if __kwargs__:
+            for k,v in __kwargs__.items():
+                if k not in kwargs:
+                    kwargs[k] = v
         for k,v in kwargs.items():
             arg_symb = short_arg_symb if len(k) == 1 else long_arg_symb
             val = []
@@ -270,8 +298,8 @@ class ooSfle:
                             stdout = io.out_open if outpipe else None )
 
         return self.f( fr, to, _ex_, 
-                       srs_dep = None, 
-                       tgt_dep = None, 
+                       srs_dep = srs_dep, 
+                       tgt_dep = tgt_dep, 
                        fname = str(excmd), 
                        __kwargs_dict__ = kwargs )
 
@@ -302,7 +330,7 @@ class ooSfle:
             val = []
             cmd += [arg_symb+k] + ([str(v)] if v or len(str(v)) > 0 else [])
         for k,v in args_items:
-            cdm += [k] + ([str(v)] if v or len(str(v)) > 0 else []) 
+            cmd += [k] + ([str(v)] if v or len(str(v)) > 0 else []) 
 
         cur_pipe.append((cmd,start,stop))
 
@@ -356,6 +384,16 @@ class ooSfle:
                                 outf.writelines( tf.extractfile(m).readlines() )
         return self.f( srs, tgt, __extract__ ) 
             
+    """
+    def math_numpy( self, fin, fout, f = "sum", col = 0, **kwargs ):
+
+        def _math_numpy_( io ):
+            vals = [float(l.strip().split('\t')[io.args['col']]) for l in sys.stdin]
+            func = getattr( np, io.args['f'] )
+            res = func(vals)
+            sys.stdout.write( str(res) +"\n" )
+        self.f( fin, fout, 
+    """
 
     def download( self, url, tgt, attempts = 1, **kwargs ):
         if not url:
@@ -365,27 +403,20 @@ class ooSfle:
         kwargs['z'] = tgt
         return self.ext( None, None, "curl", verbose = True, outpipe = False, attempts = attempts, out_deps = tgt, __kwargs_dict__=kwargs) 
 
-    def blastn( self, srs, tgt, srs_dep = None, tgt_dep = None, makedb = True,**kwargs ):
+
+    def blast( self, srs, tgt, prog = "blastn", srs_dep = None, tgt_dep = None, makedb = True, verbose = False, **kwargs ):
         #inpf = srs if type(srs) is str else srs[0]
         assert( type(srs) is list and len(srs) == 2 )
-	dbfs = [srs[1]+d for d in ['.nhr','.nin','.nsq']]
+        dbfs = [srs[1]+d for d in (['.nhr','.nin','.nsq'] if prog == 'blastn' else ['.phr','.pin','.psq'])] 
         if makedb:
-            self.ext( [], [], 'makeblastdb', verbose = True, 
-                      deps = [srs[1]], out_deps = dbfs, 
-                      args = [('-dbtype','nucl'),('-in',srs[1]),('-out',srs[1])], 
-                      outpipe = False, long_args = '-' )
-	self.ext( [], tgt, 'blastn', deps = dbfs+[srs[0]], verbose = True, 
-                  args = [('-query',srs[0]),('-db',srs[1])], long_args = '-',
-                  __kwargs_dict__ = kwargs )
-    
-    def makeblastndb( self, srs, tgt = None, srs_dep = None, tgt_dep = None, **kwargs ):
-        #inpf = srs if type(srs) is str else srs[0]
-        tgt = srs if tgt is None else tgt
-	dbfs = [tgt+d for d in ['.nhr','.nin','.nsq']]
-        self.ext( [], [], 'makeblastdb', verbose = True, 
-                  deps = [srs], out_deps = dbfs, 
-                  args = [('-dbtype','nucl'),('-in',srs),('-out',tgt)], 
-                  outpipe = False, long_args = '-' )
+            self.ex( [srs[1]], [], 'makeblastdb', verbose = verbose, 
+                      tgt_dep = dbfs,
+                      args = [('-max_file_sz','10GB'),('-dbtype','nucl') if prog == 'blastn' else ('-dbtype','prot'),('-in',srs[1]),('-out',srs[1])], 
+                      outpipe = False, long_arg_symb = '-' )
+
+        self.ex( srs, tgt, prog, srs_dep = dbfs, verbose = verbose, 
+                  args = [('-query',srs[0]),('-db',srs[1]),("-out",tgt)], long_arg_symb = '-', __kwargs__ = kwargs )
+
 
     def makeblastpdb( self, srs, tgt = None, srs_dep = None, tgt_dep = None, **kwargs ):
         #inpf = srs if type(srs) is str else srs[0]
