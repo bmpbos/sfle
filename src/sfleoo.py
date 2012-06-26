@@ -292,7 +292,7 @@ class ooSfle:
             if args_after:
                 cmd += pa
             if verbose:
-                sys.stdout.write("oo scons ex: " + " ".join(cmd) + ((' < '+ io.inpf[0] if inpipe and io.inpf) else '')+ ((' > '+ io.outf[0] if outpipe and io.outf) else '') + "\n")
+                sys.stdout.write("oo scons ex: " + " ".join(cmd) + ((' < '+ io.inpf[0]) if inpipe and io.inpf else '')+ ((' > '+ io.outf[0]) if outpipe and io.outf) else '' + "\n")
             return sb.call( cmd, 
                             stdin = io.inp_open if inpipe else None, 
                             stdout = io.out_open if outpipe else None )
