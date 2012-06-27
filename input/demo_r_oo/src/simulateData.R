@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript --vanilla --verbose
+#!/usr/bin/env Rscript
 
 suppressPackageStartupMessages( library(optparse) )
 

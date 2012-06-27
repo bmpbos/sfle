@@ -47,8 +47,8 @@ scatterBands <- function(xydat, degree=1, show.pi=TRUE, show.ci=TRUE, level=0.95
              ylab=xylabs[2],
              pch=20, col="black",
              ylim=range(xydat, pp, pc))
-        matlines(xydat$x, pc, lty=c(1,2,2), col="black")
-        matlines(xydat$x, pp, lty=c(1,3,3), col="black")
+        matlines(pred.frame$x, pc, lty=c(1,2,2), col="black")
+        matlines(pred.frame$x, pp, lty=c(1,3,3), col="black")
         ##This dataframe will define the full legend:
         legend.dat <- list(pch=c(20, -1, -1),
                            lty=c(-1, 2, 3),
@@ -71,9 +71,9 @@ scatterBands <- function(xydat, degree=1, show.pi=TRUE, show.ci=TRUE, level=0.95
 }
 
 
-if("outputfile" %in% names(opt)){
+if("plotfile" %in% names(opt)){
     loginfo(paste("creating",opt$plotfile, collapse=" "))
-    pdf(opt$outputfile, useDingbats=FALSE)
+    pdf(opt$plotfile, useDingbats=FALSE)
     fit <- scatterBands(xydat=xydat,
                            degree=opt$polydegree,
                            show.pi=opt$pi,
