@@ -23,6 +23,7 @@ import sys
 import sfle
 import time
 import numpy as np
+import shutil
 
 class IO:
 
@@ -404,6 +405,33 @@ class ooSfle:
         return self.ext( None, None, "curl", verbose = True, outpipe = False, attempts = attempts, out_deps = tgt, __kwargs_dict__=kwargs) 
 
 
+
+    def raxml_BINCAT( self, srs, tgt, prog = "raxmlHPC", srs_dep = None, tgt_dep = None, verbose = False, **kwargs ):
+        
+
+        def __raxml__( io ):
+            nl = len([l for l in open(io.inpf[0])])
+            if nl < 5:
+                with open( io.outf[0], "w" ) as outf:
+                    outf.write( "Not enough genomes to build the tree\n")
+                return
+
+            print srs
+            print os.getcwd(),io.inpf[0] 
+            raxml_dir = os.path.dirname(os.getcwd()+"/"+io.outf[0])
+            basename = os.path.basename( io.outf[0] )
+            
+            cmd = [prog,"-m","BINCAT","-s",io.inpf[0],"-w",raxml_dir,"-n",basename,"-p","1982"]
+            sb.call( cmd )
+            out = raxml_dir + "/RAxML_bestTree." + basename
+
+            shutil.move( out, io.outf[0] )
+
+
+        self.f( srs, tgt, __raxml__ ) 
+
+
+
     def blast( self, srs, tgt, prog = "blastn", srs_dep = None, tgt_dep = None, makedb = True, verbose = False, **kwargs ):
         #inpf = srs if type(srs) is str else srs[0]
         assert( type(srs) is list and len(srs) == 2 )
@@ -411,7 +439,7 @@ class ooSfle:
         if makedb:
             self.ex( [srs[1]], [], 'makeblastdb', verbose = verbose, 
                       tgt_dep = dbfs,
-                      args = [('-max_file_sz','10GB'),('-dbtype','nucl') if prog == 'blastn' else ('-dbtype','prot'),('-in',srs[1]),('-out',srs[1])], 
+                      args = [('-max_file_sz','100GB'),('-dbtype','nucl') if prog == 'blastn' else ('-dbtype','prot'),('-in',srs[1]),('-out',srs[1])], 
                       outpipe = False, long_arg_symb = '-' )
 
         self.ex( srs, tgt, prog, srs_dep = dbfs, verbose = verbose, 
