@@ -1,0 +1,92 @@
+# StartImport
+import sfle
+import sfleoo
+import sys
+
+from numpy import arange
+
+Import( "*" )
+# EndImport
+
+oo = sfleoo.ooSfle(  fileDirOutput = fileDirOutput, fileDirTmp = fileDirTmp )
+
+##End setup
+
+##two output files:
+o_simulated_data = oo.fout("sims/simulated.txt")
+o_scatterplot = oo.fout("scatterBands.pdf")
+
+##two log files:
+#o_simulated_data_logfile = oo.fout("simulated_data.log")
+o_scatterplot_logfile = oo.fout("simulated_data.log")
+
+##Two scripts to be run
+s_simulateData = oo.fsrc("simulateData.R")
+s_scatterBands = oo.fsrc("scatterBands.R")
+
+##simulate data
+oo.ex(  [], [o_simulated_data],
+	s_simulateData, n=100, xmin=0, xmax=1, q=True, o=o_simulated_data)
+##plot data
+oo.ex( [o_simulated_data], [o_scatterplot_logfile,o_scatterplot], s_scatterBands, 
+	p=2, pi=True, ci=True, level=0.95, i=o_simulated_data, o=o_scatterplot,
+        outpipe = True, verbose = True )
+Default(o_scatterplot)
+
+
+
+
+fits = []
+for pol_degre in range(1,10): 
+    o_fittable = oo.ftmp( "sims/fittable_"+str(pol_degre)+".txt" )
+    oo.ex( [o_simulated_data], [o_fittable], s_scatterBands, 
+	        p=pol_degre, pi=True, ci=True, level=0.95, i=o_simulated_data, f=o_fittable )
+    fits.append( o_fittable )
+
+def get_best_fit( io ):
+    list_d = []
+    for f in io.inpf:
+        with open(f) as inp:
+            list_d += [(lline[0].strip("\"").split(")")[-1],float(lline[-1])) 
+                    for lline in [l.strip().split('\t') for l in inp][-1:]]
+    max_degree, max_fit =  max( list_d,key = lambda x:x[1])
+    io.out_tab( ["Best fit is polynomial degree "+str(max_degree),
+                 "Adjusted r squared = "+str(max_fit)])
+
+o_best_fit = oo.fout("best_fit.txt")
+oo.f( fits, o_best_fit, get_best_fit )
+Default( o_best_fit )
+
+
+sims, sims_to_cat = [],[]
+for stdev in arange(0.025,0.31,0.025):
+    o_sim = oo.fout( "sims/simulation_stdev_"+str(round(stdev,3))+".txt")
+    o_sim_plot = oo.fout( "sims/simulation_stdev_"+str(round(stdev,3))+".pdf")
+    oo.ex(  [], [ o_sim],
+            s_simulateData, n=100, xmin=0, xmax=1, sd=stdev, q=True, o=o_sim)
+    sims += [o_sim]
+    
+    oo.ex( [o_sim], [o_sim_plot], s_scatterBands,
+           p=2, pi=True, ci=True, level=0.95, i=o_simulated_data, o=o_scatterplot )
+           
+sim_cat0 = oo.fout( "sims/"+oo.rebase(sims[0],".txt", ",cat.txt") )
+oo.ex( sims[0], sim_cat0, "cat", pipe = True )
+
+for s in sims[1:]:
+    sim_tmp = oo.fout( "sims/"+oo.rebase(s,".txt", ".cat.txt") )
+    oo.ex( s, sim_tmp, "sed", e="1d", pipe = True ) 
+    sims_to_cat.append( sim_tmp )
+
+o_sim_merged_data = oo.fout("sims/simulated_merged.txt")
+oo.ex( [sim_cat0]+sims_to_cat, o_sim_merged_data, "cat", outpipe = True, verbose = True ) 
+
+o_merged_scatterplot = oo.fout( "merged_scatterplot.pdf" )
+oo.ex( o_sim_merged_data, o_merged_scatterplot, s_scatterBands, 
+	p=2, pi=True, ci=True, level=0.95, i=o_sim_merged_data, o=o_merged_scatterplot,
+        outpipe = True, verbose = True )
+Default(o_merged_scatterplot)
+
+
+
+
+

@@ -1,0 +1,69 @@
+#######################################################################################
+# This file is provided under the Creative Commons Attribution 3.0 license.
+#
+# You are free to share, copy, distribute, transmit, or adapt this work
+# PROVIDED THAT you attribute the work to the authors listed below.
+# For more information, please see the following web page:
+# http://creativecommons.org/licenses/by/3.0/
+#
+# This file is a component of the SflE Scientific workFLow Environment for reproducible 
+# research, authored by the Huttenhower lab at the Harvard School of Public Health
+# (contact Curtis Huttenhower, chuttenh@hsph.harvard.edu).
+#
+# If you use this environment, the included scripts, or any related code in your work,
+# please let us know, sign up for the SflE user's group (sfle-users@googlegroups.com),
+# pass along any issues or feedback, and we'll let you know as soon as a formal citation
+# is available.
+#######################################################################################
+import os
+import sfle
+import sys
+
+Import( "*" )
+pE = DefaultEnvironment( )
+
+c_fileInputIndexRST		= sfle.d( pE, fileDirInput, "index" + sfle.c_strSufRST )
+c_afileInputRSTs		= Glob( sfle.d( sfle.redir( c_fileInputIndexRST ),
+							"*" + sfle.c_strSufRST ) ) + \
+							Glob( sfle.d( "../demo_*", sfle.rebase( fileDirInput ),
+							"*" + sfle.c_strSufRST ) )
+							# Mild hack to include demonstration documentation as dependencies
+c_fileInputConfPY		= sfle.d( pE, fileDirSrc, "conf" + sfle.c_strSufPY )
+
+c_fileDoctestTXT		= sfle.d( pE, fileDirOutput, "doctest.txt" )
+# Sphinx automatically names this file output.txt, for reasons that are inscrutable to me
+c_fileSphinxTXT			= sfle.d( pE, fileDirOutput, "output.txt" )
+c_fileIndexHTML			= sfle.d( pE, fileDirOutput, sfle.rebase(
+							c_fileInputIndexRST, sfle.c_strSufRST, sfle.c_strSufHTML ) )
+
+c_fileProgArgParser		= sfle.d( pE, fileDirSrc, "argparser.py" )
+c_fileProgUnitTests		= sfle.d( pE, fileDirSrc, "unittests.py" )
+
+c_afileProgsPY			= [c_fileProgSflE, c_fileProgArgParser, c_fileProgGenerateTable,
+	c_fileProgGrepRows, c_fileProgMergeTables, c_fileProgSubsample, c_fileProgTranspose,
+	c_fileProgUnitTests, c_fileProgVitals]
+c_afileProgsR			= [c_fileProgInlinedocs, c_fileProgTestthat]
+
+def funcSphinx( fDoctest = False ):
+	def funcRet( target, source, env, fDoctest = fDoctest ):
+		strT, astrSs = sfle.ts( target, source )
+		strRST, strPY = astrSs[:2]
+		return sfle.ex( ("sphinx-build -W", "-b doctest" if fDoctest else "",
+			"-c", os.path.dirname( strPY ), os.path.dirname( strRST ), os.path.dirname( strT )) )
+	return funcRet
+pPrev = None
+for fileOut, fDoctest in ((c_fileIndexHTML, False), (c_fileSphinxTXT, True)):
+	pCur = Command( fileOut, [c_fileInputIndexRST, c_fileInputConfPY] +
+		c_afileInputRSTs + c_afileProgsPY, funcSphinx( fDoctest ) )
+	Default( pCur )
+	if pPrev:
+		Requires( pCur, pPrev )
+	pPrev = pCur
+
+sfle.doctest( pE, c_afileProgsPY, c_fileDoctestTXT )
+Default( c_fileDoctestTXT )
+
+for fileR in c_afileProgsR:
+	filePDF = sfle.d( pE, fileDirOutput, sfle.rebase( fileR, sfle.c_strSufR, sfle.c_strSufPDF ) )
+	sfle.inlinedocs( pE, fileR, filePDF, fileDirTmp )
+	Default( filePDF )
