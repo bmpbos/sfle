@@ -431,6 +431,18 @@ class ooSfle:
         self.f( srs, tgt, __raxml__ ) 
 
 
+    def bowtie2( self, srs, tgt, srs_dep = None, tgt_dep = None, makedb = True, args = None, verbose = False, **kwargs ):
+        #inpf = srs if type(srs) is str else srs[0]
+        assert( type(srs) is list and len(srs) == 2 )
+        dbfs = [srs[1]+d for d in (['.1.bt2','.2.bt2','.3.bt2','.4.bt2','.rev.1.bt2','.rev.2.bt2'])] 
+        if makedb:
+            self.ex( [srs[1]], [], 'bowtie2-build', verbose = verbose, 
+                      tgt_dep = dbfs,
+                      args = [srs[1],srs[1]] )
+        self.ex( srs, tgt, "bowtie2", srs_dep = dbfs, verbose = verbose, 
+                #local = "", a = "",
+                x = srs[1], f = srs[0], outpipe = True, args = args,
+                __kwargs__ = kwargs )
 
     def blast( self, srs, tgt, prog = "blastn", srs_dep = None, tgt_dep = None, makedb = True, verbose = False, **kwargs ):
         #inpf = srs if type(srs) is str else srs[0]
