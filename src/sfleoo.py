@@ -276,14 +276,14 @@ class ooSfle:
         
         def _ex_( io ):
             cmd = [str(excmd)]
-            pa, noin, noout = [], set(), set()
+            pa, noin, noout = [], [], []
             for p in pargs:
                 if type(p) is str: pa.append(p)
                 else:
                     k,isin = p[1], p[0] == 'in'
                     pa.append( io.inpf[k] if isin else io.outf[k] )
-                    if isin: noin.add(k)
-                    else: noout.add(k)
+                    if isin: noin.append(k)
+                    else: noout.append(k)
             if not args_after:
                 cmd += pa
             if not inpipe:
