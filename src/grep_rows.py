@@ -142,7 +142,7 @@ argp.add_argument( "-c",		dest = "iCol",		metavar = "col",
 argp.add_argument( "-b",		dest = "fBeginning",	action = "store_true",
 	help = "Match beginning rather than full ID" )
 argp.add_argument( "istmRows",	metavar = "rows.txt",
-	type = file,
+	type = argparse.FileType( "r" ),
 	help = "File from which row IDs to match are read" )
 __doc__ = "::\n\n\t" + argp.format_help( ).replace( "\n", "\n\t" ) + __doc__
 

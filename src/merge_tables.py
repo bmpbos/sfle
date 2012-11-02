@@ -69,7 +69,7 @@ import os
 import re
 import sys
 
-def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, ostm ):
+def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, fHeaders, ostm ):
 	"""
 	Outputs the table join of the given pre-split string collection.
 	
@@ -83,34 +83,36 @@ def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, ostm ):
 	:type	iCol:		int
 	:param	fRows:		If true, match IDs on rows rather than columns.
 	:type	fRows:		bool
+	:param	fHeaders:	If true, assume first row is headers (column labels).
+	:type	fHeaders:	bool
 	:param	ostm:		Output stream to which matched rows are written.
 	:type	ostm:		output stream
 	
 	>>> astrLabels = ["data1.pcl", "data2.pcl"]
 	>>> aastrOne = [s.split( " " ) for s in ("tid exp1 exp2", "gene1 1 2", "gene2 3 4", "gene3 5 6")]
 	>>> aastrTwo = [s.split( " " ) for s in ("tid exp2 exp3", "gene1 0.1 0.2", "gene3 0.3 0.4", "gene5 0.5 0.6")]
-	>>> merge( [aastrOne, aastrTwo], astrLabels, False, 0, False, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
+	>>> merge( [aastrOne, aastrTwo], astrLabels, False, 0, False, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
 	tid	exp1	exp2	exp2	exp3
 	gene1	1	2	0.1	0.2
 	gene2	3	4		
 	gene3	5	6	0.3	0.4
 	gene5			0.5	0.6
 
-	>>> merge( [aastrTwo, aastrOne], astrLabels, False, 0, False, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
+	>>> merge( [aastrTwo, aastrOne], astrLabels, False, 0, False, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
 	tid	exp2	exp3	exp1	exp2
 	gene1	0.1	0.2	1	2
 	gene2			3	4
 	gene3	0.3	0.4	5	6
 	gene5	0.5	0.6		
 
-	>>> merge( [aastrOne, aastrTwo], astrLabels, True, 0, False, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
+	>>> merge( [aastrOne, aastrTwo], astrLabels, True, 0, False, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
 	tid	data1: exp1	data1: exp2	data2: exp2	data2: exp3
 	gene1	1	2	0.1	0.2
 	gene2	3	4		
 	gene3	5	6	0.3	0.4
 	gene5			0.5	0.6
 
-	>>> merge( [aastrOne, aastrTwo], astrLabels, False, 0, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
+	>>> merge( [aastrOne, aastrTwo], astrLabels, False, 0, True, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
 	tid	exp1	exp2	exp3
 	gene1	1	2
 	gene2	3	4
@@ -119,7 +121,7 @@ def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, ostm ):
 	gene3		0.3	0.4
 	gene5		0.5	0.6
 
-	>>> merge( [aastrOne, aastrTwo], astrLabels, True, 0, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
+	>>> merge( [aastrOne, aastrTwo], astrLabels, True, 0, True, True, sys.stdout ) #doctest: +NORMALIZE_WHITESPACE
 	tid	exp1	exp2	exp3
 	data1: gene1	1	2
 	data1: gene2	3	4
@@ -144,12 +146,14 @@ def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, ostm ):
 		# Remember its input line list, output line list, and ID mapping
 		aastrIn, aastrData, hashIDs = (a[iIn] for a in (aaastrIn, aaastrData, ahashIDs))
 		# Start at line -2 so that headers are -1 and data are then 0-indexed
-		iLine = -2
+		iLine = -2 if fHeaders else -1
 		for astrLine in aastrIn:
 			iLine += 1
 			# Handle indexing differently for rows versus columns
 			if fRows:
 				strID, astrData = astrLine[0], astrLine[1:]
+				if not fHeaders:
+					strID, astrData = str(iLine), astrLine
 				if ( iLine + 1 ) == iCol:
 					# Remember the first ID header name we see for output
 					if not strHeader:
@@ -167,6 +171,8 @@ def merge( aaastrIn, astrLabels, fLabel, iCol, fRows, ostm ):
 				# ID is from requested column, data are everything else
 				strID, astrData = astrLine[iCol], ( astrLine[:iCol] + astrLine[( iCol + 1 ):] )
 				if iLine >= 0:
+					if not aastrHeaders[iIn]:
+						aastrHeaders[iIn] = [str(i) for i in range( len( astrData ) )]
 					hashIDs[strID] = iLine
 					aastrData.append( astrData )
 				else:
@@ -242,12 +248,14 @@ argp.add_argument( "-l",		dest = "fLabel",		action = "store_true",
 argp.add_argument( "-c",		dest = "iCol",			metavar = "column",
 	type = int,		default = 0,
 	help = "Column number (zero-indexed) from which table IDs are read" )
+argp.add_argument( "-d",		dest = "fHeaders",		action = "store_false",
+	help = "If true, assume the first row is data, not headers" )
 __doc__ = "::\n\n\t" + argp.format_help( ).replace( "\n", "\n\t" ) + __doc__
 
 def _main( ):
 	args = argp.parse_args( )
 	merge( [csv.reader( f, csv.excel_tab ) for f in args.aistms], [f.name for f in args.aistms],
-		args.fLabel, args.iCol, args.fTranspose, sys.stdout )
+		args.fLabel, args.iCol, args.fTranspose, args.fHeaders, sys.stdout )
 
 if __name__ == "__main__":
 	_main( )

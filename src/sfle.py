@@ -43,6 +43,8 @@ c_strDirEtc				= "etc/"
 c_strDirSrc				= "src/"
 c_strDirTmp				= "tmp/"
 
+c_strSufBZ2				= ".bz2"
+c_strSufFASTA			= ".fasta"
 c_strSufGZ				= ".gz"
 c_strSufHTML			= ".html"
 c_strSufPCL				= ".pcl"
@@ -51,8 +53,10 @@ c_strSufPY				= ".py"
 c_strSufR				= ".R"
 c_strSufRData			= ".RData"
 c_strSufRST				= ".rst"
+c_strSufTAR				= ".tar"
 c_strSufTSV				= ".tsv"
 c_strSufTXT				= ".txt"
+c_strSufXML				= ".xml"
 
 c_strProgInlinedocsR	= "#" + c_strDirSrc + "inlinedocs.R"
 c_strProgTestthatR		= "#" + c_strDirSrc + "testthat.R"
@@ -235,28 +239,36 @@ def current_file( ):
 		frme = frme.f_back
 	return ( frme and os.path.abspath( inspect.getfile( frme ) ) )
 
+def isempty( strFile ):
+	
+	return ( not os.stat( fileMap )[6] )
+
 #===============================================================================
 # SCons utilities
 #===============================================================================
 
-def ex( pCmd, strOut = None ):
+def ex( pCmd, strOut = None, strErr = None ):
 	
 	strCmd = pCmd if isinstance( pCmd, str ) else " ".join( str(p) for p in pCmd )
 	sys.stdout.write( "%s" % strCmd )
-	sys.stdout.write( ( ( " > %s" % quote( strOut ) ) if strOut else "" ) + "\n" )
-	if not strOut:
+	sys.stdout.write( ( ( " > %s" % quote( strOut ) ) if strOut else "" ) )
+	sys.stdout.write( ( ( " 2> %s" % quote( strErr ) ) if strErr else "" ) + "\n" )
+	if not ( strOut or strErr ):
 		return subprocess.call( strCmd, shell = True )
-	pProc = subprocess.Popen( strCmd, shell = True, stdout = subprocess.PIPE )
+	pProc = subprocess.Popen( strCmd, shell = True,
+		stdout = ( subprocess.PIPE if strOut else None ),
+		stderr = ( open( strErr, "w" ) if strErr else None ) )
 	if not pProc:
 		return 1
-	strLine = pProc.stdout.readline( )
-	if not strLine:
-		pProc.communicate( )
-		return pProc.wait( )
-	with open( strOut, "w" ) as fileOut:
-		fileOut.write( strLine )
-		for strLine in pProc.stdout:
+	if strOut:
+		strLine = pProc.stdout.readline( )
+		if not strLine:
+			pProc.communicate( )
+			return pProc.wait( )
+		with open( strOut, "w" ) as fileOut:
 			fileOut.write( strLine )
+			for strLine in pProc.stdout:
+				fileOut.write( strLine )
 	return pProc.wait( )
 
 def ts( afileTargets, afileSources ):
@@ -298,8 +310,10 @@ def download( pE, strURL, strT = None, fSSL = False, fGlob = True, fImmediate = 
 			"" if fGlob else "-g", "-f", "-z", strT, "'" + strURL + "'") ), strT )
 # 19 is curl's document-not-found code
 		return ( iRet if ( iRet != 19 ) else 0 )
-	return ( funcDownload( [strT], [], pE ) if fImmediate else
+	afileRet = ( funcDownload( [strT], [], pE ) if fImmediate else
 		pE.Command( strT, None, funcDownload ) )
+	pE.NoClean( afileRet )
+	return afileRet
 
 def ftpls( strHost, strPath ):
 
@@ -323,7 +337,7 @@ def cat( strFrom ):
 	
 	return " ".join( (( "gunzip -c" if re.search( r'\.gz$', strFrom ) else "cat" ), quote( strFrom )) )
 
-def _pipeargs( strFrom, strTo, aArgs ):
+def _pipeargs( strFrom, strTo, aArgs, strErr ):
 
 	astrIns, astrOuts, astrArgs = ([] for i in range( 3 ))
 	if strFrom:
@@ -337,46 +351,48 @@ def _pipeargs( strFrom, strTo, aArgs ):
 			fOut, pArg = pArg[0], _pipefile( pArg[1] )
 			( astrOuts if fOut else astrIns ).append( pArg )
 		astrArgs.append( quote( pArg ) )
-	return ( [_pipefile( s ) for s in (strFrom, strTo)] + [astrIns, astrOuts, astrArgs] )
+	if strErr:
+		astrOuts.append( strErr )
+	return ( [_pipefile( s ) for s in (strFrom, strTo, strErr)] + [astrIns, astrOuts, astrArgs] )
 
-def pipe( pE, strFrom, strProg, strTo, aArgs = [] ):
+def pipe( pE, strFrom, strProg, strTo, aArgs = [], strErr = None ):
 	
-	strFrom, strTo, astrIns, astrOuts, astrArgs = _pipeargs( strFrom, strTo, aArgs )
-	def funcPipe( target, source, env, strTo = strTo, strFrom = strFrom, astrArgs = astrArgs ):
+	strFrom, strTo, strErr, astrIns, astrOuts, astrArgs = _pipeargs( strFrom, strTo, aArgs, strErr )
+	def funcPipe( target, source, env, strTo = strTo, strFrom = strFrom, astrArgs = astrArgs, strErr = strErr ):
 		astrTs, astrSs = tss( target, source )
-		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [astrSs[0]] + astrArgs, strTo )
+		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [astrSs[0]] + astrArgs, strTo, strErr )
 	return pE.Command( astrOuts, [strProg] + astrIns, funcPipe )
 
-def cmd( pE, strProg, strTo, aArgs = [] ):
+def cmd( pE, strProg, strTo, aArgs = [], strErr = None ):
 
-	return pipe( pE, None, strProg, strTo, aArgs )
+	return pipe( pE, None, strProg, strTo, aArgs, strErr )
 
-def sink( pE, strFrom, strProg, aArgs = [] ):
+def sink( pE, strFrom, strProg, aArgs = [], strErr = None ):
 
-	return pipe( pE, strFrom, strProg, None, aArgs )
+	return pipe( pE, strFrom, strProg, None, aArgs, strErr )
 
-def op( pE, strProg, aArgs = [] ):
+def op( pE, strProg, aArgs = [], strErr = None ):
 
-	return pipe( pE, None, strProg, None, aArgs )
+	return pipe( pE, None, strProg, None, aArgs, strErr )
 
-def spipe( pE, strFrom, strCmd, strTo, aArgs = [] ):
+def spipe( pE, strFrom, strCmd, strTo, aArgs = [], strErr = None ):
 	
-	strFrom, strTo, astrIns, astrOuts, astrArgs = _pipeargs( strFrom, strTo, aArgs )
-	def funcPipe( target, source, env, strCmd = strCmd, strTo = strTo, strFrom = strFrom, astrArgs = astrArgs ):
-		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [strCmd] + astrArgs, strTo )
+	strFrom, strTo, strErr, astrIns, astrOuts, astrArgs = _pipeargs( strFrom, strTo, aArgs, strErr )
+	def funcPipe( target, source, env, strCmd = strCmd, strTo = strTo, strFrom = strFrom, astrArgs = astrArgs, strErr = strErr ):
+		return ex( ( [cat( strFrom ), "|"] if strFrom else [] ) + [strCmd] + astrArgs, strTo, strErr )
 	return pE.Command( astrOuts, astrIns, funcPipe )
 
-def scmd( pE, strCmd, strTo, aArgs = [] ):
+def scmd( pE, strCmd, strTo, aArgs = [], strErr = None ):
 
-	return spipe( pE, None, strCmd, strTo, aArgs )
+	return spipe( pE, None, strCmd, strTo, aArgs, strErr )
 
-def ssink( pE, strFrom, strCmd, aArgs = [] ):
+def ssink( pE, strFrom, strCmd, aArgs = [], strErr = None ):
 
-	return spipe( pE, strFrom, strCmd, None, aArgs )
+	return spipe( pE, strFrom, strCmd, None, aArgs, strErr )
 
-def sop( pE, strCmd, aArgs = [] ):
+def sop( pE, strCmd, aArgs = [], strErr = None ):
 
-	return spipe( pE, None, strCmd, None, aArgs )
+	return spipe( pE, None, strCmd, None, aArgs, strErr )
 
 #===============================================================================
 # Sphinx reporting utilities
@@ -390,6 +406,18 @@ def _sphinx( fDoctest = False ):
 			"-c", os.path.dirname( strPY ), os.path.dirname( strRST ), os.path.dirname( strT )) )
 	return funcRet
 
+def sphinx( pE, fileIndexRST, fileConfPY, fileDirOutput, afilePYs = None, afileRSTs = None ):
+	# Sphinx automatically names this file output.txt, for reasons that are inscrutable to me
+	fileSphinxTXT = d( pE, fileDirOutput, "output.txt" )
+	fileIndexHTML = d( pE, fileDirOutput, rebase( fileIndexRST, c_strSufRST, c_strSufHTML ) )
+	afileRet = []
+	for fileOut, fDoctest in ((fileIndexHTML, False), (fileSphinxTXT, True)):
+		afileRet = pE.Command( fileOut, [fileIndexRST, fileConfPY] +
+			( afileRSTs or [] ) + ( afilePYs or [] ), _sphinx( fDoctest ) ) + afileRet
+		if ( len( afileRet ) > 1 ):
+			pE.Requires( afileRet[0], afileRet[1] )
+	return afileRet
+
 def _sphinx_conf( pE, strConfPY ):
 	
 	def funcConfPY( target, source, env ):
@@ -399,7 +427,7 @@ def _sphinx_conf( pE, strConfPY ):
 		return None
 	return pE.Command( strConfPY, None, funcConfPY )
 
-def sphinx( pE, strFrom, strProg, strTo, aArgs = [] ):
+def report( pE, strFrom, strProg, strTo, aArgs = [] ):
 	
 	strRST = str(strTo).replace( c_strSufHTML, c_strSufRST )
 	pipe( pE, strFrom, strProg, strRST, aArgs )
