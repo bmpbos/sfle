@@ -241,7 +241,7 @@ def current_file( ):
 
 def isempty( strFile ):
 	
-	return ( not os.stat( fileMap )[6] )
+	return ( not os.stat( strFile )[6] )
 
 #===============================================================================
 # SCons utilities
