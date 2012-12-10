@@ -564,8 +564,8 @@ def scons_child( pE, fileDir, hashArgs = None, fileSConstruct = None, afileDeps 
 	def funcTmp( target, source, env, fileDir = fileDir, fileSConstruct = fileSConstruct ):
 		strDir, strSConstruct = (( ( os.path.abspath( f ) if ( type( f ) == str ) else f.get_abspath( ) ) if f else None )
 			for f in (fileDir, fileSConstruct))
-		if os.path.commonprefix( (pE.GetLaunchDir( ), strDir) ) not in [strDir, pE.GetLaunchDir( )]:
-			return
+#		if os.path.commonprefix( (pE.GetLaunchDir( ), strDir) ) not in [strDir, pE.GetLaunchDir( )]:
+#			return
 		if fileSConstruct:
 			try:
 				os.makedirs( strDir )
