@@ -24,6 +24,8 @@ import sfle
 import time
 import numpy as np
 import shutil
+import random
+import time
 
 class IO:
 
@@ -238,7 +240,9 @@ class ooSfle:
                 return sb.call( cmd )
         return self.f( fr, to, _ext_, srs_dep = deps, tgt_dep = out_deps, attempts = attempts, fname = str(excmd), __kwargs_dict__ = kwargs )
 
-    def ex( self, fr, to, excmd, srs_dep = None, tgt_dep = None, pipe = False, inpipe = False, outpipe = False, args = None, args_after = False, verbose = False, short_arg_symb = '-', long_arg_symb = '--', __kwargs__ = None, **kwargs ):
+    def ex( self, fr, to, excmd, srs_dep = None, tgt_dep = None, pipe = False, inpipe = False, outpipe = False, 
+            args = None, args_after = False, rand_wait = 0, verbose = False, 
+            short_arg_symb = '-', long_arg_symb = '--', __kwargs__ = None, **kwargs ):
         if type(fr) not in [tuple,list]: fr = [fr]
         if type(to) not in [tuple,list]: to = [to]
         inpipe, outpipe = (True, True) if pipe else (inpipe, outpipe)
@@ -292,6 +296,10 @@ class ooSfle:
                 cmd += [f for i,f in enumerate(io.outf) if not i in noout]
             if args_after:
                 cmd += pa
+            if rand_wait:
+                ns = int(random.random()*rand_wait)
+                sys.stdout.write( "Waiting "+str(ns)+" secs\n" )
+                time.sleep( ns )
             if verbose:
                 sys.stdout.write("oo scons ex: " + " ".join(cmd) + ((' < '+ io.inpf[0]) if inpipe and io.inpf else '')+ ((' > '+ io.outf[0]) if outpipe and io.outf else '') + "\n")
             return sb.call( cmd, 
@@ -416,8 +424,6 @@ class ooSfle:
                     outf.write( "Not enough genomes to build the tree\n")
                 return
 
-            print srs
-            print os.getcwd(),io.inpf[0] 
             raxml_dir = os.path.dirname(os.getcwd()+"/"+io.outf[0])
             basename = os.path.basename( io.outf[0] )
             
