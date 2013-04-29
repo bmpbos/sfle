@@ -143,7 +143,7 @@ class ooSfle:
         return sfle.rebase( pPath, strFrom, strTo )
 
     def glob( self, fn ):
-        return [self.fin(a) for a in self.lenv.Glob( sfle.d( self.fileDirInput, fn ) )]
+        return sorted([self.fin(a) for a in self.lenv.Glob( sfle.d( self.fileDirInput, fn ) )])
 
     def fin( self, fn ):
         if isinstance(fn,str):
@@ -312,7 +312,8 @@ class ooSfle:
                        fname = str(excmd), 
                        __kwargs_dict__ = kwargs )
 
-    def chain( self, excmd, start = None, stop = None, in_pipe = None, short_arg_symb = '-', long_arg_symb = '--', args = None, **kwargs ):
+    def chain( self, excmd, start = None, stop = None, in_pipe = None, short_arg_symb = '-', long_arg_symb = '--', 
+               args = None, verbose = False, srs_dep = None, tgt_dep = None,  **kwargs ):
         if not hasattr( self, "pipelines" ):
             self.pipelines = {}
             self.pipeline_counter = 1000
@@ -353,10 +354,11 @@ class ooSfle:
             p = sb.Popen(cur_pipe[-1][0], stdin=p_prec.stdout, stdout=io.out_open )
             ret = p.communicate()
             #return ret
-
+        if srs_dep is None: srs_dep = []
+        if tgt_dep is None: tgt_dep = []
         return self.f( cur_pipe[0][1], cur_pipe[-1][2], _chain_,
-                       srs_dep = None, tgt_dep = None,
-                       fname = str("pipe_name_TBA"),
+                       srs_dep = srs_dep, tgt_dep = tgt_dep,
+                       fname = str("pipe_name_TBA"), verbose = verbose,
                        __kwargs_dict__ = None )
 
 
@@ -453,7 +455,7 @@ class ooSfle:
     def blast( self, srs, tgt, prog = "blastn", srs_dep = None, tgt_dep = None, makedb = True, verbose = False, **kwargs ):
         #inpf = srs if type(srs) is str else srs[0]
         assert( type(srs) is list and len(srs) == 2 )
-        dbfs = [srs[1]+d for d in (['.nhr','.nin','.nsq'] if prog == 'blastn' else ['.phr','.pin','.psq'])] 
+        dbfs = [srs[1]+d for d in (['.nhr','.nin','.nsq'] if prog in ['blastn','tblastx'] else ['.phr','.pin','.psq'])] 
         if makedb:
             self.ex( [srs[1]], [], 'makeblastdb', verbose = verbose, 
                       tgt_dep = dbfs,
