@@ -414,7 +414,7 @@ class ooSfle:
 
 
 
-    def raxml_BINCAT( self, srs, tgt, prog = "raxmlHPC", srs_dep = None, tgt_dep = None, verbose = False, **kwargs ):
+    def raxml_BINCAT( self, srs, tgt, prog = "raxmlHPC", T = 1, srs_dep = None, tgt_dep = None, verbose = False, **kwargs ):
         
 
         def __raxml__( io ):
@@ -427,7 +427,7 @@ class ooSfle:
             raxml_dir = os.path.dirname(os.getcwd()+"/"+io.outf[0])
             basename = os.path.basename( io.outf[0] )
             
-            cmd = [prog,"-m","BINCAT","-s",io.inpf[0],"-w",raxml_dir,"-n",basename,"-p","1982"]
+            cmd = [prog,"-m","BINCAT","-s",io.inpf[0],"-T",T,"-w",raxml_dir,"-n",basename,"-p","1982"]
             sb.call( cmd )
             out = raxml_dir + "/RAxML_bestTree." + basename
 
@@ -437,16 +437,17 @@ class ooSfle:
         self.f( srs, tgt, __raxml__ ) 
 
 
-    def bowtie2( self, srs, tgt, srs_dep = None, tgt_dep = None, makedb = True, args = None, verbose = False, **kwargs ):
+    def bowtie2_4_chocophlan( self, srs, tgt, srs_dep = None, tgt_dep = None, makedb = True, args = None, verbose = False, **kwargs ):
         #inpf = srs if type(srs) is str else srs[0]
         assert( type(srs) is list and len(srs) == 2 )
         dbfs = [srs[1]+d for d in (['.1.bt2','.2.bt2','.3.bt2','.4.bt2','.rev.1.bt2','.rev.2.bt2'])] 
         if makedb:
             self.ex( [srs[1]], [], 'bowtie2-build', verbose = verbose, 
-                      tgt_dep = dbfs,
+                      tgt_dep = dbfs, noauto = "", bmaxdivn = 8, dcv = 128,
                       args = [srs[1],srs[1]] )
         self.ex( srs, tgt, "bowtie2", srs_dep = dbfs, verbose = verbose, 
                 #local = "", a = "",
+                #a = "--very-sensitive-local", 
                 x = srs[1], f = srs[0], outpipe = True, args = args,
                 __kwargs__ = kwargs )
 
