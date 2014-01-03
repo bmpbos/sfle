@@ -144,6 +144,9 @@ class ooSfle:
 
     def glob( self, fn ):
         return sorted([self.fin(a) for a in self.lenv.Glob( sfle.d( self.fileDirInput, fn ) )])
+    
+    def glob_tmp( self, fn ):
+        return sorted([str(a) for a in self.lenv.Glob( sfle.d( self.fileDirTmp, fn ) )])
 
     def fin( self, fn ):
         if isinstance(fn,str):
