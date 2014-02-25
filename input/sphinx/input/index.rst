@@ -65,9 +65,9 @@ Choose one of the following methods to obtain `SflE`_:
 
 * `Mercurial`_ install (strongly recommended)::
 
-	hg clone ssh://hg@bitbucket.org/chuttenh/sfle
+	hg clone ssh://hg@bitbucket.org/biobakery/sfle
 
-* `SflE install <https://bitbucket.org/chuttenh/sfle/get/default.tar.gz>`_::
+* `SflE install <https://bitbucket.org/biobakery/sfle/get/default.tar.gz>`_::
 
 	tar -xzf chuttenh-sfle-###.tar.gz
 	mv chuttenh-sfle-### sfle
