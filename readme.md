@@ -35,12 +35,12 @@ SflE has several required prerequisites that must be installed and executable in
 ### Installation ###
 
 1. Download and unpack the SflE software
-    * Download the software: [slfe.tar.gz](https://bitbucket.org/biobakery/sfle/get/tip.tar.gz)
-    * `` $ tar xzvf slfe.tar.gz ``
+    * Download the software: [sfle.tar.gz](https://bitbucket.org/biobakery/sfle/get/tip.tar.gz)
+    * `` $ tar xzvf sfle.tar.gz ``
     * `` $ cd sfle ``
 2. Add the SflE software to your PYTHONPATH
     * `` $ export PYTHONPATH=`pwd`/src ``
-3. (Optional) Run slfE on all of its default workflows to test the install
+3. (Optional) Run SflE on all of its default workflows to test the install
     * `` $ scons ``
 
 ### How to run ###
