@@ -39,7 +39,7 @@ SflE has several required prerequisites that must be installed and executable in
     * `` $ tar xzvf sfle.tar.gz ``
     * `` $ cd sfle ``
 2. Add the SflE software to your PYTHONPATH
-    * `` $ export PYTHONPATH=`pwd`/src ``
+    * `` $ export PYTHONPATH=$PYTHONPATH:`pwd`/src ``
 3. (Optional) Run SflE on all of its default workflows to test the install
     * `` $ scons ``
 
