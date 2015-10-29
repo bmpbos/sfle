@@ -24,7 +24,7 @@ SflE has several required prerequisites that must be installed and executable in
 
 1. [Python](https://www.python.org/) (version >= 2.7) 
 2. [SCons](http://www.scons.org/) (version >= 2.1)
-3. [Sphinx]((http://sphinx-doc.org) (version >= 1.1.2)
+3. [Sphinx](http://sphinx-doc.org) (version >= 1.1.2)
 4. Operating system (Linux or Mac)
 
 #### Recommended ####
@@ -36,12 +36,12 @@ SflE has several required prerequisites that must be installed and executable in
 
 1. Download and unpack the SflE software
     * Download the software: [slfe.tar.gz](https://bitbucket.org/biobakery/sfle/get/tip.tar.gz)
-    * $ tar xzvf slfe.tar.gz
-    * $ cd sfle
+    * `` $ tar xzvf slfe.tar.gz ``
+    * `` $ cd sfle ``
 2. Add the SflE software to your PYTHONPATH
-    * $ export PYTHONPATH=`pwd`/src
+    * `` $ export PYTHONPATH=`pwd`/src ``
 3. (Optional) Run slfE on all of its default workflows to test the install
-    * $ scons
+    * `` $ scons ``
 
 ### How to run ###
 
@@ -119,4 +119,3 @@ If you're not familiar with software build systems like SCons or make, we recomm
 1. Sections 1-4 of the [GNU make manual](http://www.gnu.org/software/make/manual/make.html)
 2. [The SCons tutorial](https://bitbucket.org/scons/scons/wiki/SconsTutorial1)
 3. Sections 2-3, 6-7, and 18 of the [SCons user guide](http://www.scons.org/doc/HTML/scons-user/)
-
