@@ -4,7 +4,7 @@
 
   * Download the SflE software ( [sfle.tar.gz](https://bitbucket.org/biobakery/sfle/get/tip.tar.gz) ) then follow the [steps to install and run](#markdown-header-getting-started-with-sfle).
 
-  * To pass along any issues or feedback, sign up for the [SflE users group](sfle-users@googlegroups.com).
+  * Please direct questions to the [SflE google group](https://groups.google.com/forum/#!forum/sfle-users) (subscribe to receive SflE news).
 
   * If you use this environment, the included scripts, or any related code in your work, please let us know.
 
